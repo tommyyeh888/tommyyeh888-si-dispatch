@@ -5,9 +5,6 @@ import { useState } from 'react';
 export default function AdminPage() {
   const [customerName, setCustomerName] = useState('');
   const [branchName, setBranchName] = useState('');
-  const [date, setDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
   const [projectId, setProjectId] = useState('');
   const [machineCount, setMachineCount] = useState(2);
   const [partCount, setPartCount] = useState(2);
@@ -25,7 +22,6 @@ export default function AdminPage() {
       body: JSON.stringify({
         customerName,
         branchName,
-        date,
         projectId,
         machineCount,
         partCount,
@@ -68,14 +64,6 @@ export default function AdminPage() {
               onChange={(e) => setBranchName(e.target.value)}
               className="input"
               placeholder="例如：MAZDA新竹苗栗廠"
-            />
-          </Field>
-          <Field label="日期">
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="input"
             />
           </Field>
           <Field label="Project ID">

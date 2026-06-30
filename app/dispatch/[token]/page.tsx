@@ -31,6 +31,7 @@ export default function DispatchFormPage() {
     setSeed(decoded);
     setForm({
       ...decoded,
+      date: new Date().toISOString().slice(0, 10),
       departTime: '',
       arriveTime: '',
       securityArriveTime: '',
@@ -41,7 +42,6 @@ export default function DispatchFormPage() {
       contactPerson: '',
       contactTitle: '',
       parts: emptyParts(decoded.partCount),
-      engineerName: '',
       engineerSignature: '',
       customerSignature: '',
     });
@@ -74,10 +74,6 @@ export default function DispatchFormPage() {
   const submit = async () => {
     if (!form.engineerSignature || !form.customerSignature) {
       alert('請完成工程師簽名與客戶簽名');
-      return;
-    }
-    if (!form.engineerName) {
-      alert('請輸入工程師姓名');
       return;
     }
     setStatus('submitting');
@@ -117,9 +113,8 @@ export default function DispatchFormPage() {
           <p className="mb-2 text-lg font-medium text-slate-900">
             已上傳成功
           </p>
-          <p className="text-sm text-slate-500">
-            派工單已送出並存入雲端硬碟，可關閉此頁面
-          </p>
+          <p className="text-sm text-slate-500">派工單已送出,可關閉此頁</p>
+          <p className="mt-1 text-sm text-slate-500">謝謝您!</p>
         </div>
       </Centered>
     );
@@ -140,13 +135,21 @@ export default function DispatchFormPage() {
         <Section title="基本資訊">
           <ReadonlyRow label="客戶名稱" value={seed?.customerName || ''} />
           <ReadonlyRow label="分店" value={seed?.branchName || ''} />
-          <ReadonlyRow label="日期" value={seed?.date || ''} />
           {seed?.projectId && (
             <ReadonlyRow label="Project ID" value={seed.projectId} />
           )}
         </Section>
 
         <Section title="時間紀錄">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm text-slate-500">日期</span>
+            <input
+              type="date"
+              value={form.date || ''}
+              onChange={(e) => update({ date: e.target.value })}
+              className="w-40 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+            />
+          </div>
           <TimeField
             label="出發時間"
             value={form.departTime || ''}
@@ -269,12 +272,6 @@ export default function DispatchFormPage() {
         </Section>
 
         <Section title="簽名">
-          <input
-            value={form.engineerName || ''}
-            onChange={(e) => update({ engineerName: e.target.value })}
-            placeholder="工程師姓名"
-            className="input mb-3"
-          />
           <div className="space-y-4">
             <SignatureBox
               label="工程師簽名"

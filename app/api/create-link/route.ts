@@ -6,7 +6,6 @@ export async function POST(req: NextRequest) {
   const seed = createSeed({
     customerName: body.customerName,
     branchName: body.branchName,
-    date: body.date,
     projectId: body.projectId,
     machineCount: body.machineCount,
     partCount: body.partCount,

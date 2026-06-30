@@ -147,21 +147,56 @@ export async function generateDispatchPdf(
   });
   y -= row2H;
 
-  // 機器序號區塊
-  const machineRowH = 16;
-  const machineBlockH = Math.max(data.machines.length, 1) * machineRowH + 18;
+  // 機器序號區塊（仿原始表單：左側合併欄「機器序號」，右側每列獨立格線）
+  const machineRowH = 18;
+  const machineCount = Math.max(data.machines.length, 1);
+  const machineBlockH = machineRowH * machineCount;
+  const labelColW = 60;
+  const noColW = 26;
+
   rect(ctx, MARGIN, y - machineBlockH, contentW, machineBlockH);
-  text(ctx, '機器序號', MARGIN + 6, y - 14, 10, true);
+  // 左側合併欄
+  rect(ctx, MARGIN, y - machineBlockH, labelColW, machineBlockH);
+  const machineLabelSize = 11;
+  const machineLabelWidth = ctx.font.widthOfTextAtSize(
+    '機器序號',
+    machineLabelSize
+  );
+  text(
+    ctx,
+    '機器序號',
+    MARGIN + (labelColW - machineLabelWidth) / 2,
+    y - machineBlockH / 2 - machineLabelSize / 2.6,
+    machineLabelSize,
+    true
+  );
+
   data.machines.forEach((m, i) => {
-    const ry = y - 18 - (i + 1) * machineRowH + 4;
-    text(ctx, `${i + 1}.`, MARGIN + 10, ry, 9);
-    text(ctx, m.no || '', MARGIN + 32, ry, 9);
-    line(
+    const rowTop = y - i * machineRowH;
+    const rowBottom = rowTop - machineRowH;
+    // 編號小格
+    rect(ctx, MARGIN + labelColW, rowBottom, noColW, machineRowH);
+    text(
       ctx,
-      MARGIN + 80,
-      ry - 2,
-      MARGIN + contentW - 10,
-      ry - 2
+      `${i + 1}`,
+      MARGIN + labelColW + noColW / 2 - 3,
+      rowBottom + machineRowH / 2 - 3,
+      9
+    );
+    // 序號內容格
+    rect(
+      ctx,
+      MARGIN + labelColW + noColW,
+      rowBottom,
+      contentW - labelColW - noColW,
+      machineRowH
+    );
+    text(
+      ctx,
+      m.no || '',
+      MARGIN + labelColW + noColW + 6,
+      rowBottom + machineRowH / 2 - 3,
+      9
     );
   });
   y -= machineBlockH;
@@ -257,10 +292,6 @@ export async function generateDispatchPdf(
     140,
     50
   );
-
-  if (data.engineerName) {
-    text(ctx, `(${data.engineerName})`, MARGIN + 90, y - sigBlockH + 4, 8);
-  }
 
   const bytes = await doc.save();
   return bytes;

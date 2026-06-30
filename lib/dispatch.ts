@@ -6,7 +6,6 @@ export interface DispatchSeed {
   // 由後台(PM)建立，工程師端為唯讀，並帶入表單
   customerName: string; // 客戶名稱
   branchName: string; // 分店
-  date: string; // 日期 YYYY-MM-DD
   projectId?: string; // Project ID (選填)
   machineCount: number; // 機器序號欄位數，預設 2，可調整
   partCount: number; // 零件欄位數，預設 2，可調整
@@ -26,6 +25,7 @@ export interface PartEntry {
 
 export interface DispatchFormData extends DispatchSeed {
   // 以下由工程師在現場填寫
+  date: string; // 日期 YYYY-MM-DD，由工程師現場填寫
   departTime: string; // 出發時間
   arriveTime: string; // 到達時間
   securityArriveTime: string; // 保全到達
@@ -36,7 +36,6 @@ export interface DispatchFormData extends DispatchSeed {
   contactPerson: string; // 聯絡人
   contactTitle: '先生' | '小姐' | ''; // 先生/小姐
   parts: PartEntry[];
-  engineerName: string; // 工程師姓名(文字)
   engineerSignature: string; // base64 png dataURL
   customerSignature: string; // base64 png dataURL
 }
@@ -47,7 +46,6 @@ const DEFAULT_PART_COUNT = 2;
 export function createSeed(input: {
   customerName: string;
   branchName: string;
-  date: string;
   projectId?: string;
   machineCount?: number;
   partCount?: number;
@@ -55,7 +53,6 @@ export function createSeed(input: {
   return {
     customerName: input.customerName,
     branchName: input.branchName,
-    date: input.date,
     projectId: input.projectId || '',
     machineCount: input.machineCount ?? DEFAULT_MACHINE_COUNT,
     partCount: input.partCount ?? DEFAULT_PART_COUNT,
@@ -76,7 +73,7 @@ export function decodeSeed(token: string): DispatchSeed | null {
     while (base64.length % 4) base64 += '=';
     const json = Buffer.from(base64, 'base64').toString('utf-8');
     const seed = JSON.parse(json) as DispatchSeed;
-    if (!seed.customerName || !seed.date) return null;
+    if (!seed.customerName) return null;
     return seed;
   } catch {
     return null;
