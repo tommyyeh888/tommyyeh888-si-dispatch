@@ -6,14 +6,10 @@ export async function POST(req: NextRequest) {
   const seed = createSeed({
     customerName: body.customerName,
     branchName: body.branchName,
+    customerId: body.customerId || '',
     projectId: body.projectId,
-    machineCount: body.machineCount,
-    partCount: body.partCount,
   });
-
   const token = encodeSeed(seed);
   const origin = req.nextUrl.origin;
-  const url = `${origin}/dispatch/${token}`;
-
-  return NextResponse.json({ url, token });
+  return NextResponse.json({ url: `${origin}/dispatch/${token}`, token });
 }

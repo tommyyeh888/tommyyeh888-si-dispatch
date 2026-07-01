@@ -4,9 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import type { DispatchFormData } from './dispatch';
 
-const PAGE_W = 595.28; // A4 pt
+const PAGE_W = 595.28;
 const PAGE_H = 841.89;
-const MARGIN = 36;
+const MARGIN = 30;
 
 let cachedFontBytes: Buffer | null = null;
 function loadFontBytes(): Buffer {
@@ -16,331 +16,208 @@ function loadFontBytes(): Buffer {
   return cachedFontBytes;
 }
 
-interface Ctx {
-  page: PDFPage;
-  font: PDFFont;
-  fontBold: PDFFont;
-}
+interface Ctx { page: PDFPage; font: PDFFont; }
 
-function text(
-  ctx: Ctx,
-  str: string,
-  x: number,
-  y: number,
-  size = 10,
-  bold = false
-) {
+function t(ctx: Ctx, str: string, x: number, y: number, size = 9, bold = false) {
   if (!str) return;
-  ctx.page.drawText(str, {
-    x,
-    y,
-    size,
-    font: bold ? ctx.fontBold : ctx.font,
-    color: rgb(0, 0, 0),
-  });
+  ctx.page.drawText(str, { x, y, size, font: ctx.font, color: rgb(0, 0, 0) });
 }
 
-function line(ctx: Ctx, x1: number, y1: number, x2: number, y2: number) {
-  ctx.page.drawLine({
-    start: { x: x1, y: y1 },
-    end: { x: x2, y: y2 },
-    thickness: 0.7,
-    color: rgb(0, 0, 0),
-  });
+function l(ctx: Ctx, x1: number, y1: number, x2: number, y2: number, thickness = 0.6) {
+  ctx.page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness, color: rgb(0, 0, 0) });
 }
 
-function rect(ctx: Ctx, x: number, y: number, w: number, h: number) {
-  ctx.page.drawRectangle({
-    x,
-    y,
-    width: w,
-    height: h,
-    borderColor: rgb(0, 0, 0),
-    borderWidth: 0.7,
-  });
+function r(ctx: Ctx, x: number, y: number, w: number, h: number) {
+  ctx.page.drawRectangle({ x, y, width: w, height: h, borderColor: rgb(0, 0, 0), borderWidth: 0.6 });
 }
 
-function labelField(
-  ctx: Ctx,
-  label: string,
-  value: string,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  labelSize = 9
-) {
-  rect(ctx, x, y, w, h);
-  const baseline = y + h / 2 - labelSize / 2.6;
-  text(ctx, label, x + 4, baseline, labelSize, true);
-  const labelWidth = ctx.font.widthOfTextAtSize(label, labelSize);
-  text(ctx, value, x + 4 + labelWidth + 6, baseline, labelSize, false);
+function centerText(ctx: Ctx, str: string, x: number, y: number, w: number, size = 9, bold = false) {
+  if (!str) return;
+  const tw = ctx.font.widthOfTextAtSize(str, size);
+  t(ctx, str, x + (w - tw) / 2, y, size, bold);
 }
 
-export async function generateDispatchPdf(
-  data: DispatchFormData
-): Promise<Uint8Array> {
+export async function generateDispatchPdf(data: DispatchFormData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   const fontBytes = loadFontBytes();
   const font = await doc.embedFont(fontBytes, { subset: false });
-  const fontBold = font; // 單一字重，標籤用同字型加大處理即可
-
   const page = doc.addPage([PAGE_W, PAGE_H]);
-  const ctx: Ctx = { page, font, fontBold };
+  const ctx: Ctx = { page, font };
 
+  const CW = PAGE_W - MARGIN * 2;
   let y = PAGE_H - MARGIN;
 
-  // 表頭
-  text(ctx, '聚英資訊', MARGIN, y, 18, true);
-  text(ctx, '保養維修單', MARGIN + 110, y, 18, true);
-  text(ctx, `Order NO: ${data.projectId || ''}`, PAGE_W - MARGIN - 160, y, 9);
-  y -= 30;
+  // ── 標頭 ──
+  t(ctx, 'PTSI  聚英資訊', MARGIN, y, 14, true);
+  const titleW = font.widthOfTextAtSize('保養維修單', 14);
+  t(ctx, '保養維修單', MARGIN + CW / 2 - titleW / 2, y, 14, true);
+  t(ctx, '區', MARGIN + CW / 2 + titleW / 2 + 30, y, 10);
+  t(ctx, 'Order NO:', PAGE_W - MARGIN - 100, y, 9);
+  // 底線 for Order NO
+  l(ctx, PAGE_W - MARGIN - 40, y - 1, PAGE_W - MARGIN, y - 1);
+  y -= 6;
+  l(ctx, MARGIN, y, PAGE_W - MARGIN, y);
+  y -= 2;
 
-  const contentW = PAGE_W - MARGIN * 2;
-
-  // 第一列：日期 / 客戶名稱 / 分店
-  const row1H = 24;
-  const col1W = contentW / 3;
-  labelField(ctx, '日期', data.date || '', MARGIN, y - row1H, col1W, row1H);
-  labelField(
-    ctx,
-    '客戶名稱',
-    data.customerName || '',
-    MARGIN + col1W,
-    y - row1H,
-    col1W,
-    row1H
-  );
-  labelField(
-    ctx,
-    '分店',
-    data.branchName || '',
-    MARGIN + col1W * 2,
-    y - row1H,
-    col1W,
-    row1H
-  );
+  // ── 第一列：日期 / 客戶名稱 / 分店 ──
+  const row1H = 18;
+  const col3 = CW / 3;
+  r(ctx, MARGIN, y - row1H, CW, row1H);
+  l(ctx, MARGIN + col3, y, MARGIN + col3, y - row1H);
+  l(ctx, MARGIN + col3 * 2, y, MARGIN + col3 * 2, y - row1H);
+  t(ctx, '日  期', MARGIN + 4, y - 13, 8, true);
+  t(ctx, data.date || '', MARGIN + 40, y - 13, 9);
+  t(ctx, '客戶名稱', MARGIN + col3 + 4, y - 13, 8, true);
+  t(ctx, data.customerName || '', MARGIN + col3 + 40, y - 13, 9);
+  t(ctx, '分店/', MARGIN + col3 * 2 + 4, y - 13, 8, true);
+  t(ctx, data.branchName || '', MARGIN + col3 * 2 + 34, y - 13, 9);
   y -= row1H;
 
-  // 第二列：Project ID / 出發 / 到達 / 保全到達 / 完修
-  const row2H = 24;
-  const col2W = contentW / 5;
-  const row2Labels: [string, string][] = [
-    ['Project ID', data.projectId || ''],
-    ['出發', data.departTime || ''],
-    ['到達', data.arriveTime || ''],
-    ['保全到達', data.securityArriveTime || ''],
-    ['完修', data.finishTime || ''],
-  ];
-  row2Labels.forEach(([label, value], i) => {
-    labelField(
-      ctx,
-      label,
-      value,
-      MARGIN + col2W * i,
-      y - row2H,
-      col2W,
-      row2H,
-      7.5
-    );
+  // ── 第二列：Project ID / 出發 / 到達 / 保全到達 / 完修 ──
+  const row2H = 16;
+  const col5 = CW / 5;
+  r(ctx, MARGIN, y - row2H, CW, row2H);
+  [1, 2, 3, 4].forEach(i => l(ctx, MARGIN + col5 * i, y, MARGIN + col5 * i, y - row2H));
+  const timeLabels = ['Project ID', '出發時間', '到達時間', '保全到達', '完修時間'];
+  timeLabels.forEach((label, i) => {
+    t(ctx, label, MARGIN + col5 * i + 3, y - 11, 7.5, true);
   });
   y -= row2H;
 
-  // 機器序號區塊（仿原始表單：左側合併欄「機器序號」，右側每列獨立格線）
-  const machineRowH = 18;
-  const machineCount = Math.max(data.machines.length, 1);
-  const machineBlockH = machineRowH * machineCount;
-  const labelColW = 60;
-  const noColW = 26;
+  // ── 機器序號 (6列) ──
+  const mRowH = 16;
+  const mCount = 6;
+  const mBlockH = mRowH * mCount;
+  const labelW = 52;
+  const noW = 22;
+  const mContentW = CW - labelW - noW;
 
-  rect(ctx, MARGIN, y - machineBlockH, contentW, machineBlockH);
+  r(ctx, MARGIN, y - mBlockH, CW, mBlockH);
   // 左側合併欄
-  rect(ctx, MARGIN, y - machineBlockH, labelColW, machineBlockH);
-  const machineLabelSize = 11;
-  const machineLabelWidth = ctx.font.widthOfTextAtSize(
-    '機器序號',
-    machineLabelSize
-  );
-  text(
-    ctx,
-    '機器序號',
-    MARGIN + (labelColW - machineLabelWidth) / 2,
-    y - machineBlockH / 2 - machineLabelSize / 2.6,
-    machineLabelSize,
-    true
-  );
+  r(ctx, MARGIN, y - mBlockH, labelW, mBlockH);
+  const mlW = font.widthOfTextAtSize('機器序號', 9);
+  t(ctx, '機器序號', MARGIN + (labelW - mlW) / 2, y - mBlockH / 2 - 3, 9, true);
 
-  data.machines.forEach((m, i) => {
-    const rowTop = y - i * machineRowH;
-    const rowBottom = rowTop - machineRowH;
-    // 編號小格
-    rect(ctx, MARGIN + labelColW, rowBottom, noColW, machineRowH);
-    text(
-      ctx,
-      `${i + 1}`,
-      MARGIN + labelColW + noColW / 2 - 3,
-      rowBottom + machineRowH / 2 - 3,
-      9
-    );
-    // 序號內容格
-    rect(
-      ctx,
-      MARGIN + labelColW + noColW,
-      rowBottom,
-      contentW - labelColW - noColW,
-      machineRowH
-    );
-    text(
-      ctx,
-      m.no || '',
-      MARGIN + labelColW + noColW + 6,
-      rowBottom + machineRowH / 2 - 3,
-      9
-    );
+  for (let i = 0; i < mCount; i++) {
+    const rowY = y - i * mRowH;
+    r(ctx, MARGIN + labelW, rowY - mRowH, noW, mRowH);
+    centerText(ctx, `${i + 1}`, MARGIN + labelW, rowY - mRowH + 4, noW, 9);
+    r(ctx, MARGIN + labelW + noW, rowY - mRowH, mContentW, mRowH);
+    const no = data.machines[i]?.no || '';
+    t(ctx, no, MARGIN + labelW + noW + 6, rowY - mRowH + 5, 9);
+  }
+  y -= mBlockH;
+
+  // ── 維修/保養內容 ──
+  const contentH = 100;
+  r(ctx, MARGIN, y - contentH, CW, contentH);
+  t(ctx, '維修/保養 內容:', MARGIN + 4, y - 12, 9, true);
+
+  // 顯示勾選的選項
+  const selectedOpts = data.selectedOptions || [];
+  let optY = y - 24;
+  selectedOpts.forEach((opt) => {
+    t(ctx, `☑ ${opt}`, MARGIN + 8, optY, 9);
+    optY -= 13;
   });
-  y -= machineBlockH;
 
-  // 維修/保養內容
-  const contentBlockH = 110;
-  rect(ctx, MARGIN, y - contentBlockH, contentW, contentBlockH);
-  text(ctx, '維修/保養內容:', MARGIN + 6, y - 14, 10, true);
-  const contentLines = wrapText(data.content || '', font, 10, contentW - 16);
-  contentLines.slice(0, 5).forEach((ln, i) => {
-    text(ctx, ln, MARGIN + 6, y - 30 - i * 13, 10);
-  });
-  text(
-    ctx,
-    `報價收費傳真: ${data.quoteFax || '_______________'}    聯絡人: ${
-      data.contactPerson || '_______________'
-    } ${data.contactTitle || ''}`,
-    MARGIN + 6,
-    y - contentBlockH + 8,
-    9
-  );
-  y -= contentBlockH;
-
-  // 零件表格
-  const partsHeaderH = 16;
-  const partsRowH = 16;
-  const partsBlockH =
-    partsHeaderH + Math.max(data.parts.length, 1) * partsRowH;
-  rect(ctx, MARGIN, y - partsBlockH, contentW, partsBlockH);
-
-  const pCols = [
-    { label: '零件編號', w: 0.18 },
-    { label: '零件名稱', w: 0.32 },
-    { label: '數量', w: 0.12 },
-    { label: '使用<Y/N>', w: 0.18 },
-  ];
-  // 左右各一組
-  const halfW = contentW / 2;
-  for (const half of [0, 1]) {
-    let cx = MARGIN + half * halfW;
-    const colWidths = pCols.map((c) => c.w * halfW);
-    pCols.forEach((c, i) => {
-      text(ctx, c.label, cx + 2, y - 12, 7.5, true);
-      cx += colWidths[i];
+  // 補充文字
+  if (data.content) {
+    const lines = wrapText(data.content, font, 9, CW - 16);
+    lines.slice(0, 3).forEach((ln) => {
+      t(ctx, ln, MARGIN + 8, optY, 9);
+      optY -= 13;
     });
-    line(
-      ctx,
-      MARGIN + half * halfW,
-      y - partsHeaderH,
-      MARGIN + half * halfW + halfW,
-      y - partsHeaderH
-    );
   }
 
-  data.parts.forEach((p, i) => {
-    const ry = y - partsHeaderH - (i + 1) * partsRowH + 5;
-    const rowVals = [p.partCode, p.partName, p.qty, p.used];
-    for (const half of [0, 1]) {
-      let cx = MARGIN + half * halfW;
-      const colWidths = pCols.map((c) => c.w * halfW);
-      // 左半 = 此筆零件本身；右半留白供現場手寫第二批，沿用同一筆資料於左側即可
-      if (half === 0) {
-        rowVals.forEach((v, ci) => {
-          text(ctx, v || '', cx + 2, ry, 8);
-          cx += colWidths[ci];
-        });
-      }
+  // 報價收費那行
+  t(ctx, '□ 報價收費  傳真:', MARGIN + 4, y - contentH + 8, 8);
+  t(ctx, data.quoteFax || '_____________________', MARGIN + 80, y - contentH + 8, 8);
+  t(ctx, '聯絡人:', MARGIN + CW / 2, y - contentH + 8, 8);
+  t(ctx, `${data.contactPerson || '_________________'} ${data.contactTitle || '先生/小姐'}`, MARGIN + CW / 2 + 38, y - contentH + 8, 8);
+  y -= contentH;
+
+  // ── 零件表格 (固定6列,左右各一組) ──
+  const pRowH = 14;
+  const pHeaderH = 14;
+  const pCount = 6;
+  const pBlockH = pHeaderH + pCount * pRowH;
+  r(ctx, MARGIN, y - pBlockH, CW, pBlockH);
+
+  const halfW = CW / 2;
+  const pCols = [
+    { label: '零件編號', w: 0.22 },
+    { label: '零件名稱', w: 0.38 },
+    { label: '數量', w: 0.16 },
+    { label: '使用<Y/N>', w: 0.24 },
+  ];
+
+  // 表頭
+  for (const side of [0, 1]) {
+    let cx = MARGIN + side * halfW;
+    l(ctx, cx, y - pHeaderH, cx + halfW, y - pHeaderH);
+    pCols.forEach((col) => {
+      const colW = col.w * halfW;
+      t(ctx, col.label, cx + 2, y - 10, 7, true);
+      cx += colW;
+      if (cx < MARGIN + (side + 1) * halfW) l(ctx, cx, y, cx, y - pBlockH);
+    });
+  }
+
+  // 零件列
+  for (let i = 0; i < pCount; i++) {
+    const p = data.parts[i] || { partCode: '', partName: '', qty: '', used: '' };
+    const ry = y - pHeaderH - i * pRowH;
+    for (const side of [0, 1]) {
+      const vals = side === 0 ? [p.partCode, p.partName, p.qty, p.used] : ['', '', '', ''];
+      let cx = MARGIN + side * halfW;
+      pCols.forEach((col) => {
+        const colW = col.w * halfW;
+        t(ctx, vals[pCols.indexOf(col)] || '', cx + 2, ry - pRowH + 4, 8);
+        cx += colW;
+      });
     }
-  });
-  y -= partsBlockH;
+    l(ctx, MARGIN, ry - pRowH, MARGIN + CW, ry - pRowH);
+  }
+  // 中間分隔線
+  l(ctx, MARGIN + halfW, y, MARGIN + halfW, y - pBlockH);
+  y -= pBlockH;
 
-  // 簽名區
-  const sigBlockH = 90;
-  rect(ctx, MARGIN, y - sigBlockH, contentW, sigBlockH);
-  text(ctx, '工程師簽名:', MARGIN + 10, y - 16, 10, true);
-  text(ctx, '客戶簽名:', MARGIN + contentW / 2 + 10, y - 16, 10, true);
+  // ── 簽名區 ──
+  const sigH = 85;
+  r(ctx, MARGIN, y - sigH, CW, sigH);
+  l(ctx, MARGIN + CW / 2, y, MARGIN + CW / 2, y - sigH);
+  t(ctx, '工程師簽名:', MARGIN + 6, y - 13, 9, true);
+  t(ctx, '客戶簽名:', MARGIN + CW / 2 + 6, y - 13, 9, true);
 
-  await embedSignature(
-    doc,
-    page,
-    data.engineerSignature,
-    MARGIN + 90,
-    y - sigBlockH + 15,
-    140,
-    50
-  );
-  await embedSignature(
-    doc,
-    page,
-    data.customerSignature,
-    MARGIN + contentW / 2 + 80,
-    y - sigBlockH + 15,
-    140,
-    50
-  );
+  await embedSig(doc, page, data.engineerSignature, MARGIN + 50, y - sigH + 12, 130, 55);
+  await embedSig(doc, page, data.customerSignature, MARGIN + CW / 2 + 50, y - sigH + 12, 130, 55);
 
-  const bytes = await doc.save();
-  return bytes;
+  return await doc.save();
 }
 
-async function embedSignature(
-  doc: PDFDocument,
-  page: PDFPage,
-  dataUrl: string,
-  x: number,
-  y: number,
-  maxW: number,
-  maxH: number
-) {
-  if (!dataUrl || !dataUrl.startsWith('data:image')) return;
+async function embedSig(doc: PDFDocument, page: PDFPage, dataUrl: string, x: number, y: number, maxW: number, maxH: number) {
+  if (!dataUrl?.startsWith('data:image')) return;
   try {
     const base64 = dataUrl.split(',')[1];
     const bytes = Buffer.from(base64, 'base64');
     const isPng = dataUrl.includes('image/png');
     const img = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
     const scale = Math.min(maxW / img.width, maxH / img.height, 1);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    page.drawImage(img, { x, y, width: w, height: h });
-  } catch {
-    // 簽名圖片解析失敗時略過，不中斷整體 PDF 產生
-  }
+    page.drawImage(img, { x, y, width: img.width * scale, height: img.height * scale });
+  } catch { /* 略過 */ }
 }
 
-function wrapText(
-  str: string,
-  font: PDFFont,
-  size: number,
-  maxWidth: number
-): string[] {
+function wrapText(str: string, font: PDFFont, size: number, maxW: number): string[] {
   const lines: string[] = [];
-  const paragraphs = str.split('\n');
-  for (const para of paragraphs) {
-    let current = '';
+  for (const para of str.split('\n')) {
+    let cur = '';
     for (const ch of para) {
-      const test = current + ch;
-      if (font.widthOfTextAtSize(test, size) > maxWidth && current) {
-        lines.push(current);
-        current = ch;
-      } else {
-        current = test;
-      }
+      if (font.widthOfTextAtSize(cur + ch, size) > maxW && cur) { lines.push(cur); cur = ch; }
+      else cur += ch;
     }
-    lines.push(current);
+    lines.push(cur);
   }
   return lines;
 }

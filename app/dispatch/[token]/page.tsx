@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import SignatureBox from '@/components/SignatureBox';
+import { supabase, type ServiceOption } from '@/lib/supabase';
 import {
   decodeSeed,
   emptyMachines,
@@ -21,13 +22,11 @@ export default function DispatchFormPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [seed, setSeed] = useState<DispatchSeed | null>(null);
   const [form, setForm] = useState<Partial<DispatchFormData>>({});
+  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
 
   useEffect(() => {
     const decoded = decodeSeed(token);
-    if (!decoded) {
-      setStatus('invalid');
-      return;
-    }
+    if (!decoded) { setStatus('invalid'); return; }
     setSeed(decoded);
     setForm({
       ...decoded,
@@ -36,20 +35,40 @@ export default function DispatchFormPage() {
       arriveTime: '',
       securityArriveTime: '',
       finishTime: '',
-      machines: emptyMachines(decoded.machineCount),
+      machines: emptyMachines(6),
+      selectedOptions: [],
       content: '',
       quoteFax: '',
       contactPerson: '',
       contactTitle: '',
-      parts: emptyParts(decoded.partCount),
+      parts: emptyParts(6),
       engineerSignature: '',
       customerSignature: '',
     });
-    setStatus('ready');
+
+    // 從 Supabase 讀取維修選項
+    supabase
+      .from('dispatch_service_options')
+      .select('*')
+      .order('sort_order')
+      .then(({ data }) => {
+        setServiceOptions(data || []);
+        setStatus('ready');
+      });
   }, [token]);
 
   const update = (patch: Partial<DispatchFormData>) =>
     setForm((f) => ({ ...f, ...patch }));
+
+  const toggleOption = (label: string) => {
+    setForm((f) => {
+      const current = f.selectedOptions || [];
+      const next = current.includes(label)
+        ? current.filter((o) => o !== label)
+        : [...current, label];
+      return { ...f, selectedOptions: next };
+    });
+  };
 
   const updateMachine = (i: number, no: string) => {
     setForm((f) => {
@@ -59,11 +78,7 @@ export default function DispatchFormPage() {
     });
   };
 
-  const updatePart = (
-    i: number,
-    field: 'partCode' | 'partName' | 'qty' | 'used',
-    value: string
-  ) => {
+  const updatePart = (i: number, field: 'partCode' | 'partName' | 'qty' | 'used', value: string) => {
     setForm((f) => {
       const parts = [...(f.parts || [])];
       parts[i] = { ...parts[i], [field]: value } as never;
@@ -84,11 +99,7 @@ export default function DispatchFormPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error || '送出失敗');
-        setStatus('error');
-        return;
-      }
+      if (!res.ok) { setErrorMsg(data.error || '送出失敗'); setStatus('error'); return; }
       setStatus('done');
     } catch {
       setErrorMsg('網路連線失敗，請檢查網路後重試');
@@ -96,38 +107,25 @@ export default function DispatchFormPage() {
     }
   };
 
-  if (status === 'loading') {
-    return <Centered>載入中...</Centered>;
-  }
-  if (status === 'invalid') {
-    return (
-      <Centered>
-        連結無效或已損毀，請聯繫後台重新產生連結。
-      </Centered>
-    );
-  }
-  if (status === 'done') {
-    return (
-      <Centered>
-        <div className="text-center">
-          <p className="mb-2 text-lg font-medium text-slate-900">
-            已上傳成功
-          </p>
-          <p className="text-sm text-slate-500">派工單已送出,可關閉此頁</p>
-          <p className="mt-1 text-sm text-slate-500">謝謝您!</p>
-        </div>
-      </Centered>
-    );
-  }
+  if (status === 'loading') return <Centered>載入中...</Centered>;
+  if (status === 'invalid') return <Centered>連結無效或已損毀，請聯繫後台重新產生連結。</Centered>;
+  if (status === 'done') return (
+    <Centered>
+      <div className="text-center">
+        <p className="mb-2 text-2xl">✅</p>
+        <p className="mb-2 text-lg font-medium text-slate-900">已上傳成功</p>
+        <p className="text-sm text-slate-500">派工單已送出，可關閉此頁</p>
+        <p className="mt-1 text-sm text-slate-500">謝謝您！</p>
+      </div>
+    </Centered>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white px-4 py-3">
-        <h1 className="text-base font-semibold text-slate-900">
-          聚英資訊 保養維修單
-        </h1>
+        <h1 className="text-base font-semibold text-slate-900">聚英資訊 保養維修單</h1>
         <p className="text-sm text-slate-500">
-          {seed?.customerName} {seed?.branchName ? `/ ${seed.branchName}` : ''}
+          {seed?.customerName}{seed?.branchName ? ` / ${seed.branchName}` : ''}
         </p>
       </header>
 
@@ -135,13 +133,7 @@ export default function DispatchFormPage() {
         <Section title="基本資訊">
           <ReadonlyRow label="客戶名稱" value={seed?.customerName || ''} />
           <ReadonlyRow label="分店" value={seed?.branchName || ''} />
-          {seed?.projectId && (
-            <ReadonlyRow label="Project ID" value={seed.projectId} />
-          )}
-        </Section>
-
-        <Section title="時間紀錄">
-          <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <span className="text-sm text-slate-500">日期</span>
             <input
               type="date"
@@ -150,47 +142,47 @@ export default function DispatchFormPage() {
               className="w-40 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
-          <TimeField
-            label="出發時間"
-            value={form.departTime || ''}
-            onChange={(v) => update({ departTime: v })}
-          />
-          <TimeField
-            label="到達時間"
-            value={form.arriveTime || ''}
-            onChange={(v) => update({ arriveTime: v })}
-          />
-          <TimeField
-            label="保全到達"
-            value={form.securityArriveTime || ''}
-            onChange={(v) => update({ securityArriveTime: v })}
-          />
-          <TimeField
-            label="完修時間"
-            value={form.finishTime || ''}
-            onChange={(v) => update({ finishTime: v })}
-          />
         </Section>
 
         <Section title="機器序號">
           {(form.machines || []).map((m, i) => (
-            <input
-              key={i}
-              value={m.no}
-              onChange={(e) => updateMachine(i, e.target.value)}
-              placeholder={`機器序號 ${i + 1}`}
-              className="input mb-2"
-            />
+            <div key={i} className="mb-2 flex items-center gap-2">
+              <span className="w-6 text-center text-sm text-slate-400">{i + 1}</span>
+              <input
+                value={m.no}
+                onChange={(e) => updateMachine(i, e.target.value)}
+                placeholder={`序號 ${i + 1}`}
+                className="input"
+              />
+            </div>
           ))}
         </Section>
 
         <Section title="維修/保養內容">
+          {serviceOptions.length > 0 && (
+            <div className="mb-3 space-y-2">
+              {serviceOptions.map((opt) => {
+                const checked = (form.selectedOptions || []).includes(opt.label);
+                return (
+                  <label key={opt.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleOption(opt.label)}
+                      className="h-4 w-4 rounded"
+                    />
+                    <span className="text-sm text-slate-800">{opt.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
           <textarea
             value={form.content || ''}
             onChange={(e) => update({ content: e.target.value })}
-            rows={5}
+            rows={3}
             className="input resize-none"
-            placeholder="請輸入本次維修/保養內容"
+            placeholder="補充說明（選填）"
           />
           <div className="mt-3 grid grid-cols-2 gap-2">
             <input
@@ -208,11 +200,7 @@ export default function DispatchFormPage() {
               />
               <select
                 value={form.contactTitle || ''}
-                onChange={(e) =>
-                  update({
-                    contactTitle: e.target.value as '先生' | '小姐' | '',
-                  })
-                }
+                onChange={(e) => update({ contactTitle: e.target.value as '先生' | '小姐' | '' })}
                 className="input w-20"
               >
                 <option value="">稱謂</option>
@@ -225,43 +213,13 @@ export default function DispatchFormPage() {
 
         <Section title="使用零件">
           {(form.parts || []).map((p, i) => (
-            <div
-              key={i}
-              className="mb-3 rounded-lg border border-slate-200 p-3"
-            >
-              <p className="mb-2 text-xs font-medium text-slate-500">
-                零件 {i + 1}
-              </p>
+            <div key={i} className="mb-3 rounded-lg border border-slate-200 p-3">
+              <p className="mb-2 text-xs font-medium text-slate-500">零件 {i + 1}</p>
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={p.partCode}
-                  onChange={(e) =>
-                    updatePart(i, 'partCode', e.target.value)
-                  }
-                  placeholder="零件編號"
-                  className="input"
-                />
-                <input
-                  value={p.partName}
-                  onChange={(e) =>
-                    updatePart(i, 'partName', e.target.value)
-                  }
-                  placeholder="零件名稱"
-                  className="input"
-                />
-                <input
-                  value={p.qty}
-                  onChange={(e) => updatePart(i, 'qty', e.target.value)}
-                  placeholder="數量"
-                  className="input"
-                />
-                <select
-                  value={p.used}
-                  onChange={(e) =>
-                    updatePart(i, 'used', e.target.value)
-                  }
-                  className="input"
-                >
+                <input value={p.partCode} onChange={(e) => updatePart(i, 'partCode', e.target.value)} placeholder="零件編號" className="input" />
+                <input value={p.partName} onChange={(e) => updatePart(i, 'partName', e.target.value)} placeholder="零件名稱" className="input" />
+                <input value={p.qty} onChange={(e) => updatePart(i, 'qty', e.target.value)} placeholder="數量" className="input" />
+                <select value={p.used} onChange={(e) => updatePart(i, 'used', e.target.value)} className="input">
                   <option value="">使用 Y/N</option>
                   <option value="Y">Y</option>
                   <option value="N">N</option>
@@ -273,21 +231,13 @@ export default function DispatchFormPage() {
 
         <Section title="簽名">
           <div className="space-y-4">
-            <SignatureBox
-              label="工程師簽名"
-              onChange={(url) => update({ engineerSignature: url })}
-            />
-            <SignatureBox
-              label="客戶簽名"
-              onChange={(url) => update({ customerSignature: url })}
-            />
+            <SignatureBox label="工程師簽名" onChange={(url) => update({ engineerSignature: url })} />
+            <SignatureBox label="客戶簽名" onChange={(url) => update({ customerSignature: url })} />
           </div>
         </Section>
 
         {status === 'error' && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            {errorMsg}
-          </p>
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{errorMsg}</p>
         )}
       </main>
 
@@ -302,38 +252,18 @@ export default function DispatchFormPage() {
       </div>
 
       <style jsx global>{`
-        .input {
-          width: 100%;
-          border: 1px solid rgb(203 213 225);
-          border-radius: 0.5rem;
-          padding: 0.625rem 0.75rem;
-          font-size: 0.875rem;
-          background: white;
-        }
-        .input:focus {
-          outline: none;
-          border-color: rgb(100 116 139);
-        }
+        .input { width: 100%; border: 1px solid rgb(203 213 225); border-radius: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; background: white; }
+        .input:focus { outline: none; border-color: rgb(100 116 139); }
       `}</style>
     </div>
   );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-center text-slate-600">
-      {children}
-    </div>
-  );
+  return <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-center text-slate-600">{children}</div>;
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="mb-3 text-sm font-semibold text-slate-900">{title}</h2>
@@ -347,28 +277,6 @@ function ReadonlyRow({ label, value }: { label: string; value: string }) {
     <div className="mb-2 flex justify-between text-sm last:mb-0">
       <span className="text-slate-500">{label}</span>
       <span className="font-medium text-slate-900">{value || '—'}</span>
-    </div>
-  );
-}
-
-function TimeField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="mb-2 flex items-center justify-between last:mb-0">
-      <span className="text-sm text-slate-500">{label}</span>
-      <input
-        type="time"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-32 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-      />
     </div>
   );
 }

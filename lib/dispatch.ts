@@ -3,13 +3,13 @@
 // 工程師打開連結時直接從網址解碼還原，送出後直接產生 PDF 上傳雲端硬碟，不落地存檔。
 
 export interface DispatchSeed {
-  // 由後台(PM)建立，工程師端為唯讀，並帶入表單
-  customerName: string; // 客戶名稱
-  branchName: string; // 分店
-  projectId?: string; // Project ID (選填)
-  machineCount: number; // 機器序號欄位數，預設 2，可調整
-  partCount: number; // 零件欄位數，預設 2，可調整
-  createdAt: string; // ISO timestamp，用來決定要存進哪個年-月資料夾
+  customerName: string;
+  branchName: string;
+  customerId: string;
+  projectId?: string;
+  machineCount: number;
+  partCount: number;
+  createdAt: string;
 }
 
 export interface MachineEntry {
@@ -24,38 +24,38 @@ export interface PartEntry {
 }
 
 export interface DispatchFormData extends DispatchSeed {
-  // 以下由工程師在現場填寫
-  date: string; // 日期 YYYY-MM-DD，由工程師現場填寫
-  departTime: string; // 出發時間
-  arriveTime: string; // 到達時間
-  securityArriveTime: string; // 保全到達
-  finishTime: string; // 完修時間
+  date: string;
+  departTime: string;
+  arriveTime: string;
+  securityArriveTime: string;
+  finishTime: string;
   machines: MachineEntry[];
-  content: string; // 維修/保養內容
-  quoteFax: string; // 報價收費傳真
-  contactPerson: string; // 聯絡人
-  contactTitle: '先生' | '小姐' | ''; // 先生/小姐
+  selectedOptions: string[];
+  content: string;
+  quoteFax: string;
+  contactPerson: string;
+  contactTitle: '先生' | '小姐' | '';
   parts: PartEntry[];
-  engineerSignature: string; // base64 png dataURL
-  customerSignature: string; // base64 png dataURL
+  engineerSignature: string;
+  customerSignature: string;
 }
 
-const DEFAULT_MACHINE_COUNT = 2;
-const DEFAULT_PART_COUNT = 2;
+const DEFAULT_MACHINE_COUNT = 6;
+const DEFAULT_PART_COUNT = 6;
 
 export function createSeed(input: {
   customerName: string;
   branchName: string;
+  customerId: string;
   projectId?: string;
-  machineCount?: number;
-  partCount?: number;
 }): DispatchSeed {
   return {
     customerName: input.customerName,
     branchName: input.branchName,
+    customerId: input.customerId,
     projectId: input.projectId || '',
-    machineCount: input.machineCount ?? DEFAULT_MACHINE_COUNT,
-    partCount: input.partCount ?? DEFAULT_PART_COUNT,
+    machineCount: DEFAULT_MACHINE_COUNT,
+    partCount: DEFAULT_PART_COUNT,
     createdAt: new Date().toISOString(),
   };
 }

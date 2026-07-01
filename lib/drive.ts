@@ -76,23 +76,20 @@ export async function uploadDispatchPdf(
   opts: { date: string; branchName: string; customerName: string }
 ): Promise<UploadResult> {
   const sharedDriveId = process.env.GOOGLE_SHARED_DRIVE_ID;
-  if (!sharedDriveId) {
-    throw new Error('缺少環境變數 GOOGLE_SHARED_DRIVE_ID');
-  }
+  if (!sharedDriveId) throw new Error('缺少環境變數 GOOGLE_SHARED_DRIVE_ID');
   const drive = getDriveClient();
 
   const d = new Date(opts.date);
   const yearMonth = isNaN(d.getTime())
-    ? new Date().toISOString().slice(0, 7).replace('-', '年') + '月'
+    ? new Date().toISOString().slice(0, 7)
     : `${d.getFullYear()}年${String(d.getMonth() + 1).padStart(2, '0')}月`;
 
-  // 月份資料夾建立在共用雲端硬碟的根目錄下
-  const monthFolderId = await findOrCreateFolder(
-    drive,
-    yearMonth,
-    sharedDriveId,
-    sharedDriveId
-  );
+  // 年月資料夾
+  const monthFolderId = await findOrCreateFolder(drive, yearMonth, sharedDriveId, sharedDriveId);
+
+  // 客戶名稱資料夾（在年月資料夾下）
+  const customerName = opts.customerName || '未分類';
+  const customerFolderId = await findOrCreateFolder(drive, customerName, monthFolderId, sharedDriveId);
 
   const dateStr = opts.date || new Date().toISOString().slice(0, 10);
   const fileName = `${dateStr}_${opts.branchName || opts.customerName}_保養維修單.pdf`;
@@ -103,10 +100,7 @@ export async function uploadDispatchPdf(
   };
 
   const created = await drive.files.create({
-    requestBody: {
-      name: fileName,
-      parents: [monthFolderId],
-    },
+    requestBody: { name: fileName, parents: [customerFolderId] },
     media,
     fields: 'id, webViewLink',
     supportsAllDrives: true,

@@ -1,34 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect } from 'react';
+import { supabase, type Customer } from '@/lib/supabase';
+import { createSeed, encodeSeed } from '@/lib/dispatch';
 
 export default function AdminPage() {
-  const [customerName, setCustomerName] = useState('');
-  const [branchName, setBranchName] = useState('');
-  const [projectId, setProjectId] = useState('');
-  const [machineCount, setMachineCount] = useState(2);
-  const [partCount, setPartCount] = useState(2);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerId, setCustomerId] = useState('');
+  const [branch, setBranch] = useState('');
   const [link, setLink] = useState('');
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    const { data } = await supabase
+      .from('dispatch_customers')
+      .select('*')
+      .order('sort_order');
+    setCustomers(data || []);
+    setLoading(false);
+  };
 
   const generate = async () => {
-    if (!customerName) {
-      alert('請輸入客戶名稱');
+    const customer = customers.find((c) => c.id === customerId);
+    if (!customer) {
+      alert('請選擇客戶');
       return;
     }
-    const res = await fetch('/api/create-link', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customerName,
-        branchName,
-        projectId,
-        machineCount,
-        partCount,
-      }),
+    const seed = createSeed({
+      customerName: customer.name,
+      branchName: branch,
+      customerId: customer.id,
     });
-    const data = await res.json();
-    setLink(data.url);
+    const token = encodeSeed(seed);
+    const origin = window.location.origin;
+    setLink(`${origin}/dispatch/${token}`);
     setCopied(false);
   };
 
@@ -42,58 +54,54 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-lg">
-        <h1 className="mb-1 text-xl font-semibold text-slate-900">
-          建立派工單
-        </h1>
-        <p className="mb-6 text-sm text-slate-500">
-          填寫客戶資訊後產生連結，傳給現場工程師即可
-        </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">聚英資訊 派工系統</h1>
+            <p className="text-sm text-slate-500">後台管理</p>
+          </div>
+          <div className="flex gap-2">
+            <a href="/admin/customers" className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700">
+              客戶管理
+            </a>
+            <a href="/admin/options" className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700">
+              維修選項
+            </a>
+          </div>
+        </div>
 
         <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <Field label="客戶名稱 *">
-            <input
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="input"
-              placeholder="例如：中國上優"
-            />
-          </Field>
-          <Field label="分店">
-            <input
-              value={branchName}
-              onChange={(e) => setBranchName(e.target.value)}
-              className="input"
-              placeholder="例如：MAZDA新竹苗栗廠"
-            />
-          </Field>
-          <Field label="Project ID">
-            <input
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="input"
-            />
-          </Field>
-          <div className="flex gap-4">
-            <Field label="機器序號筆數">
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={machineCount}
-                onChange={(e) => setMachineCount(Number(e.target.value))}
+          <h2 className="font-medium text-slate-900">建立派工單</h2>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">客戶 *</label>
+            {loading ? (
+              <p className="text-sm text-slate-400">載入中...</p>
+            ) : customers.length === 0 ? (
+              <p className="text-sm text-red-500">
+                尚無客戶，請先到「<a href="/admin/customers" className="underline">客戶管理</a>」新增
+              </p>
+            ) : (
+              <select
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
                 className="input"
-              />
-            </Field>
-            <Field label="零件筆數">
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={partCount}
-                onChange={(e) => setPartCount(Number(e.target.value))}
-                className="input"
-              />
-            </Field>
+              >
+                <option value="">請選擇客戶</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">分店</label>
+            <input
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              className="input"
+              placeholder="例如：龍潭廠"
+            />
           </div>
 
           <button
@@ -105,10 +113,8 @@ export default function AdminPage() {
         </div>
 
         {link && (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="mb-2 text-sm font-medium text-slate-700">
-              派工連結（傳給工程師）
-            </p>
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="mb-2 text-sm font-medium text-slate-700">派工連結（傳給工程師）</p>
             <div className="flex items-center gap-2">
               <input
                 readOnly
@@ -134,29 +140,10 @@ export default function AdminPage() {
           border-radius: 0.5rem;
           padding: 0.5rem 0.75rem;
           font-size: 0.875rem;
+          background: white;
         }
-        .input:focus {
-          outline: none;
-          border-color: rgb(100 116 139);
-        }
+        .input:focus { outline: none; border-color: rgb(100 116 139); }
       `}</style>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex-1">
-      <label className="mb-1 block text-sm font-medium text-slate-700">
-        {label}
-      </label>
-      {children}
     </div>
   );
 }
