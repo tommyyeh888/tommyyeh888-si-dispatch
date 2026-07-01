@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import SignatureBox from '@/components/SignatureBox';
-import { supabase, type ServiceOption } from '@/lib/supabase';
 import {
   decodeSeed,
   emptyMachines,
@@ -22,7 +21,7 @@ export default function DispatchFormPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [seed, setSeed] = useState<DispatchSeed | null>(null);
   const [form, setForm] = useState<Partial<DispatchFormData>>({});
-  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
+  const [serviceOptions, setServiceOptions] = useState<{id: string; label: string}[]>([]);
 
   useEffect(() => {
     const decoded = decodeSeed(token);
@@ -31,58 +30,37 @@ export default function DispatchFormPage() {
     setForm({
       ...decoded,
       date: new Date().toISOString().slice(0, 10),
-      departTime: '',
-      arriveTime: '',
-      securityArriveTime: '',
-      finishTime: '',
+      departTime: '', arriveTime: '', securityArriveTime: '', finishTime: '',
       machines: emptyMachines(6),
       selectedOptions: [],
       content: '',
-      quoteFax: '',
-      contactPerson: '',
-      contactTitle: '',
+      quoteFax: '', contactPerson: '', contactTitle: '',
       parts: emptyParts(6),
-      engineerSignature: '',
-      customerSignature: '',
+      engineerSignature: '', customerSignature: '',
     });
 
-    // 從 Supabase 讀取維修選項
-    supabase
-      .from('dispatch_service_options')
-      .select('*')
-      .order('sort_order')
-      .then(({ data }) => {
-        setServiceOptions(data || []);
-        setStatus('ready');
-      });
+    // 讀取維修選項
+    fetch('/api/service-options')
+      .then(r => r.json())
+      .then(data => { setServiceOptions(Array.isArray(data) ? data : []); setStatus('ready'); })
+      .catch(() => setStatus('ready'));
   }, [token]);
 
-  const update = (patch: Partial<DispatchFormData>) =>
-    setForm((f) => ({ ...f, ...patch }));
+  const update = (patch: Partial<DispatchFormData>) => setForm(f => ({ ...f, ...patch }));
 
   const toggleOption = (label: string) => {
-    setForm((f) => {
+    setForm(f => {
       const current = f.selectedOptions || [];
-      const next = current.includes(label)
-        ? current.filter((o) => o !== label)
-        : [...current, label];
+      const next = current.includes(label) ? current.filter(o => o !== label) : [...current, label];
       return { ...f, selectedOptions: next };
     });
   };
 
   const updateMachine = (i: number, no: string) => {
-    setForm((f) => {
+    setForm(f => {
       const machines = [...(f.machines || [])];
       machines[i] = { no };
       return { ...f, machines };
-    });
-  };
-
-  const updatePart = (i: number, field: 'partCode' | 'partName' | 'qty' | 'used', value: string) => {
-    setForm((f) => {
-      const parts = [...(f.parts || [])];
-      parts[i] = { ...parts[i], [field]: value } as never;
-      return { ...f, parts };
     });
   };
 
@@ -130,6 +108,7 @@ export default function DispatchFormPage() {
       </header>
 
       <main className="mx-auto max-w-md space-y-4 px-4 py-4">
+        {/* 基本資訊 */}
         <Section title="基本資訊">
           <ReadonlyRow label="客戶名稱" value={seed?.customerName || ''} />
           <ReadonlyRow label="分店" value={seed?.branchName || ''} />
@@ -144,10 +123,11 @@ export default function DispatchFormPage() {
           </div>
         </Section>
 
+        {/* 機器序號 */}
         <Section title="機器序號">
           {(form.machines || []).map((m, i) => (
             <div key={i} className="mb-2 flex items-center gap-2">
-              <span className="w-6 text-center text-sm text-slate-400">{i + 1}</span>
+              <span className="w-6 shrink-0 text-center text-sm text-slate-400">{i + 1}</span>
               <input
                 value={m.no}
                 onChange={(e) => updateMachine(i, e.target.value)}
@@ -158,24 +138,27 @@ export default function DispatchFormPage() {
           ))}
         </Section>
 
+        {/* 維修/保養內容 */}
         <Section title="維修/保養內容">
-          {serviceOptions.length > 0 && (
+          {serviceOptions.length > 0 ? (
             <div className="mb-3 space-y-2">
               {serviceOptions.map((opt) => {
                 const checked = (form.selectedOptions || []).includes(opt.label);
                 return (
-                  <label key={opt.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                  <label key={opt.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${checked ? 'border-slate-800 bg-slate-50' : 'border-slate-200'}`}>
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleOption(opt.label)}
-                      className="h-4 w-4 rounded"
+                      className="h-4 w-4 rounded accent-slate-800"
                     />
                     <span className="text-sm text-slate-800">{opt.label}</span>
                   </label>
                 );
               })}
             </div>
+          ) : (
+            <p className="mb-3 text-sm text-slate-400">（後台尚未設定維修選項）</p>
           )}
           <textarea
             value={form.content || ''}
@@ -185,24 +168,10 @@ export default function DispatchFormPage() {
             placeholder="補充說明（選填）"
           />
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <input
-              value={form.quoteFax || ''}
-              onChange={(e) => update({ quoteFax: e.target.value })}
-              placeholder="報價收費傳真"
-              className="input"
-            />
+            <input value={form.quoteFax || ''} onChange={(e) => update({ quoteFax: e.target.value })} placeholder="報價收費傳真" className="input" />
             <div className="flex gap-2">
-              <input
-                value={form.contactPerson || ''}
-                onChange={(e) => update({ contactPerson: e.target.value })}
-                placeholder="聯絡人"
-                className="input"
-              />
-              <select
-                value={form.contactTitle || ''}
-                onChange={(e) => update({ contactTitle: e.target.value as '先生' | '小姐' | '' })}
-                className="input w-20"
-              >
+              <input value={form.contactPerson || ''} onChange={(e) => update({ contactPerson: e.target.value })} placeholder="聯絡人" className="input" />
+              <select value={form.contactTitle || ''} onChange={(e) => update({ contactTitle: e.target.value as '先生' | '小姐' | '' })} className="input w-20">
                 <option value="">稱謂</option>
                 <option value="先生">先生</option>
                 <option value="小姐">小姐</option>
@@ -211,24 +180,7 @@ export default function DispatchFormPage() {
           </div>
         </Section>
 
-        <Section title="使用零件">
-          {(form.parts || []).map((p, i) => (
-            <div key={i} className="mb-3 rounded-lg border border-slate-200 p-3">
-              <p className="mb-2 text-xs font-medium text-slate-500">零件 {i + 1}</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input value={p.partCode} onChange={(e) => updatePart(i, 'partCode', e.target.value)} placeholder="零件編號" className="input" />
-                <input value={p.partName} onChange={(e) => updatePart(i, 'partName', e.target.value)} placeholder="零件名稱" className="input" />
-                <input value={p.qty} onChange={(e) => updatePart(i, 'qty', e.target.value)} placeholder="數量" className="input" />
-                <select value={p.used} onChange={(e) => updatePart(i, 'used', e.target.value)} className="input">
-                  <option value="">使用 Y/N</option>
-                  <option value="Y">Y</option>
-                  <option value="N">N</option>
-                </select>
-              </div>
-            </div>
-          ))}
-        </Section>
-
+        {/* 簽名 */}
         <Section title="簽名">
           <div className="space-y-4">
             <SignatureBox label="工程師簽名" onChange={(url) => update({ engineerSignature: url })} />
@@ -262,7 +214,6 @@ export default function DispatchFormPage() {
 function Centered({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-center text-slate-600">{children}</div>;
 }
-
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -271,7 +222,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </section>
   );
 }
-
 function ReadonlyRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="mb-2 flex justify-between text-sm last:mb-0">
