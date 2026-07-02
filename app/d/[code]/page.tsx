@@ -27,8 +27,8 @@ export default function ShortLinkPage() {
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 日期自動帶入當天
-  const [date] = useState(new Date().toISOString().slice(0, 10));
+  // 日期讓工程師自行填寫
+  const [date, setDate] = useState('');
   const [machines, setMachines] = useState(emptyMachines(6));
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [content, setContent] = useState('');
@@ -84,6 +84,10 @@ export default function ShortLinkPage() {
   };
 
   const submit = async () => {
+    if (!date) {
+      alert('請填寫日期');
+      return;
+    }
     if (!engineerSig || !customerSig) {
       alert('請完成工程師簽名與客戶簽名');
       return;
@@ -144,7 +148,15 @@ export default function ShortLinkPage() {
         <Section title="基本資訊">
           <ReadonlyRow label="客戶名稱" value={order?.customer_name || ''} />
           <ReadonlyRow label="分店" value={order?.branch || ''} />
-          <ReadonlyRow label="日期" value={date} />
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-500">日期 <span className="text-red-500">*</span></span>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className={`w-40 rounded-lg border px-2 py-1.5 text-sm ${!date ? 'border-red-300 bg-red-50' : 'border-slate-300'}`}
+            />
+          </div>
         </Section>
 
         <Section title="機器序號">
