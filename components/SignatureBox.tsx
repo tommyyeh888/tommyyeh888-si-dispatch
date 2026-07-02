@@ -8,14 +8,12 @@ interface Props {
   onChange: (dataUrl: string) => void;
 }
 
-// 將簽名圖片旋轉 90 度（順時針），輸出給 PDF 用
 function rotateDataUrl(dataUrl: string, degrees: number): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const rad = (degrees * Math.PI) / 180;
-      // 旋轉後寬高對調
       canvas.width = img.height;
       canvas.height = img.width;
       const ctx = canvas.getContext('2d')!;
@@ -79,20 +77,15 @@ export default function SignatureBox({ label, onChange }: Props) {
       return;
     }
     const raw = padRef.current.toDataURL('image/png');
-    // 旋轉 90 度給 PDF 用，預覽維持原方向
     const rotated = await rotateDataUrl(raw, 90);
-    setPreviewUrl(raw); // 預覽給工程師看（直式）
-    onChange(rotated);  // 傳給 PDF 的是旋轉後版本
+    setPreviewUrl(raw);
+    onChange(rotated);
     padRef.current.off();
     setFullscreen(false);
   };
 
   const clearSig = () => padRef.current?.clear();
-
-  const clearAll = () => {
-    setPreviewUrl('');
-    onChange('');
-  };
+  const clearAll = () => { setPreviewUrl(''); onChange(''); };
 
   return (
     <>
@@ -120,30 +113,45 @@ export default function SignatureBox({ label, onChange }: Props) {
         </div>
       </div>
 
-      {/* 全螢幕簽名（直式，不旋轉） */}
       {fullscreen && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'white', display: 'flex', flexDirection: 'column',
+          background: 'white', display: 'flex', flexDirection: 'row',
         }}>
-          {/* 工具列 */}
+          {/* 左側：旋轉的工具列（取消 + 標題） */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '12px 20px', borderBottom: '1px solid #e2e8f0', flexShrink: 0,
+            width: 52, flexShrink: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'space-between',
+            padding: '20px 0',
+            borderRight: '1px solid #e2e8f0',
+            background: 'white',
           }}>
+            {/* 取消按鈕 - 旋轉文字 */}
             <button onClick={closeFullscreen} style={{
-              fontSize: 15, color: '#64748b', padding: '4px 8px',
               background: 'none', border: 'none', cursor: 'pointer',
+              color: '#64748b', fontSize: 14, fontWeight: 500,
+              transform: 'rotate(90deg)', whiteSpace: 'nowrap',
+              padding: '4px 8px',
             }}>取消</button>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{label}</span>
+
+            {/* 標題 - 旋轉文字 */}
+            <span style={{
+              fontSize: 14, fontWeight: 600, color: '#0f172a',
+              transform: 'rotate(90deg)', whiteSpace: 'nowrap',
+            }}>{label}</span>
+
+            {/* 清除按鈕 - 旋轉文字 */}
             <button onClick={clearSig} style={{
-              fontSize: 15, color: '#ef4444', padding: '4px 8px',
               background: 'none', border: 'none', cursor: 'pointer',
+              color: '#ef4444', fontSize: 14, fontWeight: 500,
+              transform: 'rotate(90deg)', whiteSpace: 'nowrap',
+              padding: '4px 8px',
             }}>清除</button>
           </div>
 
-          {/* 簽名畫布（直式全螢幕） */}
-          <div style={{ flex: 1, position: 'relative' }}>
+          {/* 中間：簽名畫布（不旋轉） */}
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <canvas
               ref={canvasRef}
               style={{
@@ -161,13 +169,18 @@ export default function SignatureBox({ label, onChange }: Props) {
             }}>請在此處簽名</p>
           </div>
 
-          {/* 確認按鈕 */}
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #e2e8f0', flexShrink: 0 }}>
-            <button onClick={confirmSig} style={{
-              width: '100%', background: '#0f172a', color: 'white',
-              border: 'none', borderRadius: 8, padding: '14px 0',
-              fontSize: 15, fontWeight: 600, cursor: 'pointer',
-            }}>確認簽名</button>
+          {/* 右側：確認按鈕（旋轉文字） */}
+          <div style={{
+            width: 52, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderLeft: '1px solid #e2e8f0',
+            background: '#0f172a',
+            cursor: 'pointer',
+          }} onClick={confirmSig}>
+            <span style={{
+              color: 'white', fontSize: 14, fontWeight: 600,
+              transform: 'rotate(-90deg)', whiteSpace: 'nowrap',
+            }}>確認簽名</span>
           </div>
         </div>
       )}

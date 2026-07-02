@@ -173,9 +173,12 @@ export default function ShortLinkPage() {
       </main>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white px-4 py-3">
+        {status === 'submitting' && (
+          <p className="mb-2 text-center text-sm text-slate-500">上傳中，請稍候...</p>
+        )}
         <button onClick={submit} disabled={status === 'submitting'}
           className="mx-auto block w-full max-w-md rounded-lg bg-slate-900 py-3 text-sm font-medium text-white disabled:opacity-50">
-          {status === 'submitting' ? '上傳中...' : '完成並送出'}
+          {status === 'submitting' ? '⏳ 上傳中...' : '完成並送出'}
         </button>
       </div>
 
