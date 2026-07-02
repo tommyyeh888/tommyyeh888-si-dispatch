@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateDispatchPdf } from '@/lib/pdf';
 import { uploadDispatchPdf } from '@/lib/drive';
+import { sendLineMessage } from '@/lib/line';
 import { createClient } from '@supabase/supabase-js';
 import type { DispatchFormData } from '@/lib/dispatch';
 
@@ -31,7 +32,6 @@ export async function POST(req: NextRequest) {
     );
 
     if (data.token) {
-      // 更新現有紀錄（後台已建單）
       await supabase
         .from('dispatch_orders')
         .update({
@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
         })
         .eq('token', data.token);
     } else {
-      // 直接新增（備用）
       await supabase.from('dispatch_orders').insert({
         customer_id: data.customerId || null,
         customer_name: data.customerName,
@@ -63,6 +62,21 @@ export async function POST(req: NextRequest) {
         status: 'completed',
       });
     }
+
+    // LINE 群組通知
+    const selectedOpts = (data.selectedOptions || []).join('、') || '無';
+    const machines = data.machines.filter(m => m.no).map(m => m.no).join('、') || '無';
+    const lineMsg = [
+      '✅ 派工單已回傳',
+      `📋 客戶：${data.customerName}${data.branchName ? ` / ${data.branchName}` : ''}`,
+      `📅 日期：${data.date}`,
+      `🔧 維修項目：${selectedOpts}`,
+      machines !== '無' ? `🖥️ 機器序號：${machines}` : null,
+      data.content ? `📝 補充：${data.content}` : null,
+      `📄 查看PDF：${driveResult.webViewLink}`,
+    ].filter(Boolean).join('\n');
+
+    await sendLineMessage(lineMsg);
 
     return NextResponse.json({ ok: true, ...driveResult });
   } catch (err) {
