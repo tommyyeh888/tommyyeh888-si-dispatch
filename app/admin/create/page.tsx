@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createSeed, encodeSeed } from '@/lib/dispatch';
 
 interface Customer { id: string; name: string; }
 
@@ -26,9 +25,8 @@ export default function CreatePage() {
     const customer = customers.find(c => c.id === customerId);
     if (!customer) { alert('請選擇客戶'); return; }
     setSubmitting(true);
-
     try {
-      // 先建立 Supabase 紀錄，拿到 ID 當 token
+      // 建立 Supabase 紀錄，自動產生短碼
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,25 +39,19 @@ export default function CreatePage() {
       const order = await res.json();
       if (!res.ok) throw new Error(order.error || '建立失敗');
 
-      // 把 order.id 當 token 編入連結
-      const seed = createSeed({
-        customerName: customer.name,
-        branchName: branch,
-        customerId: customer.id,
-        token: order.id,
-      });
-      const token = encodeSeed(seed);
-      const url = `${window.location.origin}/dispatch/${token}`;
+      // 短連結格式：/d/短碼
+      const shortUrl = `${window.location.origin}/d/${order.short_code}`;
 
-      // 把連結存回 Supabase
+      // 把短碼存回 token 欄位（方便 submit API 對應）
       await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token: order.id }),
       });
 
-      // 跳到結果頁
-      router.push(`/admin/create/result?url=${encodeURIComponent(url)}&customer=${encodeURIComponent(customer.name)}&branch=${encodeURIComponent(branch)}`);
+      router.push(
+        `/admin/create/result?url=${encodeURIComponent(shortUrl)}&customer=${encodeURIComponent(customer.name)}&branch=${encodeURIComponent(branch)}&code=${order.short_code}`
+      );
     } catch (e) {
       alert(e instanceof Error ? e.message : '發生錯誤');
       setSubmitting(false);
@@ -91,14 +83,12 @@ export default function CreatePage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">分店</label>
-            <input value={branch} onChange={e => setBranch(e.target.value)} className="input" placeholder="例如：龍潭廠" />
+            <input value={branch} onChange={e => setBranch(e.target.value)}
+              className="input" placeholder="例如：龍潭廠" />
           </div>
 
-          <button
-            onClick={generate}
-            disabled={submitting || loading}
-            className="w-full rounded-lg bg-slate-900 py-3 text-sm font-medium text-white disabled:opacity-50"
-          >
+          <button onClick={generate} disabled={submitting || loading}
+            className="w-full rounded-lg bg-slate-900 py-3 text-sm font-medium text-white disabled:opacity-50">
             {submitting ? '建立中...' : '產生派工連結'}
           </button>
         </div>

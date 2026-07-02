@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { generateShortCode } from '@/lib/shortcode';
 
 function getClient() {
   return createClient(
@@ -8,21 +9,18 @@ function getClient() {
   );
 }
 
-// 查詢派工單列表
 export async function GET(req: NextRequest) {
-  const month = req.nextUrl.searchParams.get('month'); // 格式 2026-07
+  const month = req.nextUrl.searchParams.get('month');
   const customerId = req.nextUrl.searchParams.get('customer_id');
   const supabase = getClient();
 
   let query = supabase
     .from('dispatch_orders')
-    .select('id, customer_name, branch, date, status, pdf_drive_url, created_at, token')
+    .select('id, customer_name, branch, date, status, pdf_drive_url, created_at, short_code')
     .order('created_at', { ascending: false });
 
   if (month) {
-    const start = `${month}-01`;
-    const end = `${month}-31`;
-    query = query.gte('date', start).lte('date', end);
+    query = query.gte('date', `${month}-01`).lte('date', `${month}-31`);
   }
   if (customerId) {
     query = query.eq('customer_id', customerId);
@@ -33,10 +31,22 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data);
 }
 
-// 建立派工單（後台建單時呼叫）
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const supabase = getClient();
+
+  // 產生唯一短碼（最多嘗試 5 次避免碰撞）
+  let short_code = '';
+  for (let i = 0; i < 5; i++) {
+    const code = generateShortCode();
+    const { data } = await supabase
+      .from('dispatch_orders')
+      .select('id')
+      .eq('short_code', code)
+      .single();
+    if (!data) { short_code = code; break; }
+  }
+
   const { data, error } = await supabase
     .from('dispatch_orders')
     .insert({
@@ -45,13 +55,15 @@ export async function POST(req: NextRequest) {
       branch: body.branch,
       date: body.date || new Date().toISOString().slice(0, 10),
       status: 'pending',
-      token: body.token,
+      token: body.token || '',
+      short_code,
       machines: [],
       selected_options: [],
       parts: [],
     })
     .select()
     .single();
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

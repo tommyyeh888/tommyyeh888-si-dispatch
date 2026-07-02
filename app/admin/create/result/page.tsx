@@ -9,6 +9,7 @@ function ResultContent() {
   const url = params.get('url') || '';
   const customer = params.get('customer') || '';
   const branch = params.get('branch') || '';
+  const code = params.get('code') || '';
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -23,33 +24,24 @@ function ResultContent() {
         <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm text-center">
           <div className="mb-4 text-5xl">✅</div>
           <h1 className="mb-1 text-xl font-bold text-slate-900">派工單已建立</h1>
-          <p className="mb-6 text-sm text-slate-500">
-            {customer}{branch ? ` / ${branch}` : ''}<br />
-            狀態已記錄為「已派工」，等待工程師回傳
-          </p>
+          <p className="mb-1 text-sm text-slate-600">{customer}{branch ? ` / ${branch}` : ''}</p>
+          <p className="mb-6 text-xs text-slate-400">派工編號：{code}</p>
 
-          <div className="mb-6 rounded-lg bg-slate-50 p-4">
+          <div className="mb-4 rounded-lg bg-slate-50 p-4">
             <p className="mb-2 text-xs font-medium text-slate-500 text-left">派工連結（傳給工程師）</p>
-            <div className="flex gap-2">
-              <input
-                readOnly
-                value={url}
-                className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
-                onFocus={e => e.target.select()}
-              />
-              <button
-                onClick={copy}
-                className="shrink-0 rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white"
-              >
-                {copied ? '已複製 ✓' : '複製'}
-              </button>
+            <div className="mb-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left font-mono text-sm text-slate-800 break-all">
+              {url}
             </div>
+            <button onClick={copy}
+              className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-medium text-white">
+              {copied ? '✓ 已複製連結' : '複製連結'}
+            </button>
           </div>
 
-          <a
-            href="/admin"
-            className="block w-full rounded-lg border border-slate-300 py-3 text-sm font-medium text-slate-700 text-center"
-          >
+          <p className="mb-4 text-xs text-slate-400">狀態已記錄為「已派工」，等待工程師回傳</p>
+
+          <a href="/admin"
+            className="block w-full rounded-lg border border-slate-300 py-3 text-sm font-medium text-slate-700 text-center">
             回到主選單
           </a>
         </div>
