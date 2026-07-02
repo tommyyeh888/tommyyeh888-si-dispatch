@@ -27,12 +27,11 @@ export default function ShortLinkPage() {
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 表單欄位
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  // 日期自動帶入當天
+  const [date] = useState(new Date().toISOString().slice(0, 10));
   const [machines, setMachines] = useState(emptyMachines(6));
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [content, setContent] = useState('');
-  const [quoteFax, setQuoteFax] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contactTitle, setContactTitle] = useState('');
   const [engineerSig, setEngineerSig] = useState('');
@@ -78,12 +77,11 @@ export default function ShortLinkPage() {
           customerName: order!.customer_name,
           branchName: order!.branch,
           customerId: order!.customer_id,
-          machineCount: 6,
-          partCount: 6,
+          machineCount: 6, partCount: 6,
           createdAt: new Date().toISOString(),
           token: order!.token || order!.id,
           date, machines, selectedOptions, content,
-          quoteFax, contactPerson, contactTitle,
+          quoteFax: '', contactPerson, contactTitle,
           parts: emptyParts(6),
           engineerSignature: engineerSig,
           customerSignature: customerSig,
@@ -126,11 +124,7 @@ export default function ShortLinkPage() {
         <Section title="基本資訊">
           <ReadonlyRow label="客戶名稱" value={order?.customer_name || ''} />
           <ReadonlyRow label="分店" value={order?.branch || ''} />
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-500">日期</span>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              className="w-40 rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
-          </div>
+          <ReadonlyRow label="日期" value={date} />
         </Section>
 
         <Section title="機器序號">
@@ -160,18 +154,14 @@ export default function ShortLinkPage() {
           )}
           <textarea value={content} onChange={e => setContent(e.target.value)}
             rows={3} className="input resize-none" placeholder="補充說明（選填）" />
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <input value={quoteFax} onChange={e => setQuoteFax(e.target.value)}
-              placeholder="報價收費傳真" className="input" />
-            <div className="flex gap-2">
-              <input value={contactPerson} onChange={e => setContactPerson(e.target.value)}
-                placeholder="聯絡人" className="input" />
-              <select value={contactTitle} onChange={e => setContactTitle(e.target.value)} className="input w-20">
-                <option value="">稱謂</option>
-                <option value="先生">先生</option>
-                <option value="小姐">小姐</option>
-              </select>
-            </div>
+          <div className="mt-3 flex gap-2">
+            <input value={contactPerson} onChange={e => setContactPerson(e.target.value)}
+              placeholder="聯絡人" className="input" />
+            <select value={contactTitle} onChange={e => setContactTitle(e.target.value)} className="input w-24 shrink-0">
+              <option value="">稱謂</option>
+              <option value="先生">先生</option>
+              <option value="小姐">小姐</option>
+            </select>
           </div>
         </Section>
 

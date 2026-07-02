@@ -10,6 +10,7 @@ interface Order {
   date: string;
   status: 'pending' | 'completed';
   pdf_drive_url: string;
+  short_code: string;
   created_at: string;
 }
 
@@ -29,7 +30,7 @@ export default function OrdersPage() {
     fetch('/api/customers').then(r => r.json()).then(data => setCustomers(Array.isArray(data) ? data : []));
   }, []);
 
-  useEffect(() => {
+  const fetchOrders = () => {
     setLoading(true);
     const params = new URLSearchParams({ month });
     if (customerId) params.set('customer_id', customerId);
@@ -37,9 +38,16 @@ export default function OrdersPage() {
       .then(r => r.json())
       .then(data => { setOrders(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [month, customerId]);
+  };
 
-  // 產生最近 6 個月選項
+  useEffect(() => { fetchOrders(); }, [month, customerId]);
+
+  const deleteOrder = async (id: string) => {
+    if (!confirm('確定刪除此派工紀錄？此動作無法復原。')) return;
+    await fetch(`/api/orders?id=${id}`, { method: 'DELETE' });
+    fetchOrders();
+  };
+
   const monthOptions = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -58,7 +66,6 @@ export default function OrdersPage() {
           <h1 className="text-xl font-semibold text-slate-900">查詢派工單</h1>
         </div>
 
-        {/* 篩選區 */}
         <div className="mb-4 flex gap-2">
           <select value={month} onChange={e => setMonth(e.target.value)} className="input flex-1">
             {monthOptions.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
@@ -69,7 +76,6 @@ export default function OrdersPage() {
           </select>
         </div>
 
-        {/* 統計 */}
         {!loading && (
           <div className="mb-4 flex gap-3">
             <div className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
@@ -87,37 +93,41 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* 列表 */}
         {loading ? (
-          <p className="text-center text-sm text-slate-400 py-8">載入中...</p>
+          <p className="py-8 text-center text-sm text-slate-400">載入中...</p>
         ) : orders.length === 0 ? (
-          <p className="text-center text-sm text-slate-400 py-8">本月尚無派工紀錄</p>
+          <p className="py-8 text-center text-sm text-slate-400">本月尚無派工紀錄</p>
         ) : (
           <div className="space-y-2">
             {orders.map(order => (
               <div key={order.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium text-slate-900">{order.customer_name}</p>
                     <p className="text-sm text-slate-500">{order.branch || '—'}</p>
-                    <p className="mt-1 text-xs text-slate-400">{order.date || order.created_at?.slice(0, 10)}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <p className="text-xs text-slate-400">{order.date || order.created_at?.slice(0, 10)}</p>
+                      {order.short_code && (
+                        <span className="text-xs text-slate-300">#{order.short_code}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
+                  <div className="flex flex-col items-end gap-2 shrink-0">
                     {order.status === 'completed' ? (
                       <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">✅ 已回傳</span>
                     ) : (
                       <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">🟡 已派工</span>
                     )}
                     {order.status === 'completed' && order.pdf_drive_url && (
-                      <a
-                        href={order.pdf_drive_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 underline"
-                      >
-                        查看 PDF ↗
-                      </a>
+                      <a href={order.pdf_drive_url} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-blue-600 underline">查看 PDF ↗</a>
                     )}
+                    <button
+                      onClick={() => deleteOrder(order.id)}
+                      className="text-xs text-red-400 underline"
+                    >
+                      刪除
+                    </button>
                   </div>
                 </div>
               </div>
