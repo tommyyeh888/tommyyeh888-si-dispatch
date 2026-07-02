@@ -154,14 +154,9 @@ export default function ShortLinkPage() {
           )}
           <textarea value={content} onChange={e => setContent(e.target.value)}
             rows={3} className="input resize-none" placeholder="補充說明（選填）" />
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3">
             <input value={contactPerson} onChange={e => setContactPerson(e.target.value)}
               placeholder="聯絡人" className="input" />
-            <select value={contactTitle} onChange={e => setContactTitle(e.target.value)} className="input w-24 shrink-0">
-              <option value="">稱謂</option>
-              <option value="先生">先生</option>
-              <option value="小姐">小姐</option>
-            </select>
           </div>
         </Section>
 

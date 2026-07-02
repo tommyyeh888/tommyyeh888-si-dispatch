@@ -9,97 +9,78 @@ interface Props {
 }
 
 export default function SignatureBox({ label, onChange }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const fullCanvasRef = useRef<HTMLCanvasElement>(null);
-  const padRef = useRef<SignaturePad | null>(null);
   const fullPadRef = useRef<SignaturePad | null>(null);
-  const [empty, setEmpty] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
 
-  const resize = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * ratio;
-    canvas.height = rect.height * ratio;
-    canvas.getContext('2d')?.scale(ratio, ratio);
-    padRef.current?.clear();
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    padRef.current = new SignaturePad(canvas, {
-      backgroundColor: 'rgb(255,255,255)',
-      penColor: 'rgb(15,23,42)',
-    });
-    resize();
-    window.addEventListener('resize', resize);
-    return () => {
-      window.removeEventListener('resize', resize);
-      padRef.current?.off();
-    };
-  }, [resize]);
-
-  // 初始化全螢幕簽名板
-  useEffect(() => {
-    if (!fullscreen) return;
+  // 全螢幕開啟後，等 canvas 渲染完再初始化
+  const initFullPad = useCallback(() => {
     const canvas = fullCanvasRef.current;
     if (!canvas) return;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = window.innerWidth * ratio;
-    canvas.height = window.innerHeight * ratio;
-    canvas.getContext('2d')?.scale(ratio, ratio);
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    canvas.width = w * ratio;
+    canvas.height = h * ratio;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.scale(ratio, ratio);
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, w, h);
+    }
+    if (fullPadRef.current) fullPadRef.current.off();
     fullPadRef.current = new SignaturePad(canvas, {
-      backgroundColor: 'rgb(255,255,255)',
+      backgroundColor: 'rgba(255,255,255,0)',
       penColor: 'rgb(15,23,42)',
+      minWidth: 1.5,
+      maxWidth: 3,
     });
-    return () => { fullPadRef.current?.off(); };
-  }, [fullscreen]);
+  }, []);
 
-  // 開啟全螢幕時強制橫式
+  useEffect(() => {
+    if (!fullscreen) return;
+    // 等 DOM 渲染完再初始化
+    const timer = setTimeout(initFullPad, 100);
+    return () => clearTimeout(timer);
+  }, [fullscreen, initFullPad]);
+
   const openFullscreen = () => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (screen.orientation as any)?.lock?.('landscape').catch(() => {});
-    } catch { /* 不支援的裝置略過 */ }
+    } catch { /* 略過 */ }
     setFullscreen(true);
   };
 
-  // 關閉全螢幕時恢復直式
   const closeFullscreen = () => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (screen.orientation as any)?.unlock?.();
     } catch { /* 略過 */ }
+    fullPadRef.current?.off();
     setFullscreen(false);
   };
 
   const confirmFullscreen = () => {
     if (!fullPadRef.current || fullPadRef.current.isEmpty()) {
-      alert('請先簽名');
+      alert('請先完成簽名');
       return;
     }
     const url = fullPadRef.current.toDataURL('image/png');
     setPreviewUrl(url);
-    setEmpty(false);
     onChange(url);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (screen.orientation as any)?.unlock?.();
     } catch { /* 略過 */ }
+    fullPadRef.current.off();
     setFullscreen(false);
   };
 
-  const clearFullscreen = () => {
-    fullPadRef.current?.clear();
-  };
+  const clearFullscreen = () => fullPadRef.current?.clear();
 
   const clearAll = () => {
-    padRef.current?.clear();
-    setEmpty(true);
     setPreviewUrl('');
     onChange('');
   };
@@ -109,24 +90,24 @@ export default function SignatureBox({ label, onChange }: Props) {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-slate-700">{label}</span>
-          {!empty && (
+          {previewUrl && (
             <button type="button" onClick={clearAll} className="text-xs text-slate-500 underline">
               清除重簽
             </button>
           )}
         </div>
 
-        {/* 預覽區 / 點擊開啟全螢幕 */}
+        {/* 預覽區 */}
         <div
           onClick={openFullscreen}
-          className="relative h-32 w-full overflow-hidden rounded-lg border border-slate-300 bg-white cursor-pointer touch-none"
+          className="relative h-32 w-full overflow-hidden rounded-lg border border-slate-300 bg-white cursor-pointer select-none"
         >
           {previewUrl ? (
-            <img src={previewUrl} alt="簽名預覽" className="h-full w-full object-contain" />
+            <img src={previewUrl} alt="簽名預覽" className="h-full w-full object-contain p-2" />
           ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-1">
-              <span className="text-2xl">✍️</span>
-              <span className="text-sm text-slate-400">點此簽名</span>
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2">
+              <span className="text-3xl">✍️</span>
+              <span className="text-sm text-slate-400">點此開啟簽名</span>
             </div>
           )}
         </div>
@@ -134,54 +115,66 @@ export default function SignatureBox({ label, onChange }: Props) {
 
       {/* 全螢幕簽名 Modal */}
       {fullscreen && (
-        <div className="sig-fullscreen fixed z-50 bg-white flex flex-col">
+        <div
+          className="sig-modal"
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 9999,
+            background: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           {/* 頂部工具列 */}
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 shrink-0">
-            <button onClick={closeFullscreen} className="text-sm text-slate-500">取消</button>
-            <span className="text-sm font-semibold text-slate-900">{label}</span>
-            <button onClick={clearFullscreen} className="text-sm text-red-500">清除</button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+            <button onClick={closeFullscreen} style={{ fontSize: 14, color: '#64748b' }}>取消</button>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{label}</span>
+            <button onClick={clearFullscreen} style={{ fontSize: 14, color: '#ef4444' }}>清除</button>
           </div>
 
-          {/* 簽名畫布 */}
-          <div className="flex-1 relative">
+          {/* 簽名畫布區 */}
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <canvas
               ref={fullCanvasRef}
-              className="absolute inset-0 w-full h-full touch-none"
-              style={{ width: '100%', height: '100%' }}
+              style={{
+                position: 'absolute',
+                top: 0, left: 0,
+                width: '100%',
+                height: '100%',
+                touchAction: 'none',
+                display: 'block',
+                background: 'white',
+              }}
             />
-            <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-200">
-              請在此處簽名
-            </p>
+            {!previewUrl && (
+              <p style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', color: '#e2e8f0', fontSize: 14, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                請在此處簽名
+              </p>
+            )}
           </div>
 
           {/* 確認按鈕 */}
-          <div className="shrink-0 px-4 py-4 border-t border-slate-200">
+          <div style={{ padding: '12px 16px', borderTop: '1px solid #e2e8f0', flexShrink: 0 }}>
             <button
               onClick={confirmFullscreen}
-              className="w-full rounded-lg bg-slate-900 py-3 text-sm font-medium text-white"
+              style={{ width: '100%', background: '#0f172a', color: 'white', border: 'none', borderRadius: 8, padding: '14px 0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
             >
               確認簽名
             </button>
           </div>
 
           <style jsx global>{`
-            /* 直式時旋轉整個簽名 Modal 為橫式 */
             @media (orientation: portrait) {
-              .sig-fullscreen {
-                top: 0; left: 0;
-                width: 100vh;
-                height: 100vw;
-                transform: rotate(90deg) translateX(0);
+              .sig-modal {
+                width: 100vh !important;
+                height: 100vw !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: auto !important;
+                bottom: auto !important;
+                transform: rotate(90deg) translateY(-100%);
                 transform-origin: top left;
-                margin-top: 100vw;
-              }
-            }
-            /* 橫式時直接全螢幕 */
-            @media (orientation: landscape) {
-              .sig-fullscreen {
-                inset: 0;
-                width: 100vw;
-                height: 100vh;
               }
             }
           `}</style>
