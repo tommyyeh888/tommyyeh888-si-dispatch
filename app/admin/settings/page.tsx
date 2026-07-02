@@ -61,13 +61,16 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab */}
-        <div className="mb-4 flex rounded-lg border border-slate-200 bg-white p-1">
-          <button onClick={() => setTab('customers')} className={`flex-1 rounded-md py-2 text-sm font-medium transition ${tab === 'customers' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>
-            客戶管理
-          </button>
-          <button onClick={() => setTab('options')} className={`flex-1 rounded-md py-2 text-sm font-medium transition ${tab === 'options' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>
-            維修保養選項
-          </button>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex rounded-lg border border-slate-200 bg-white p-1">
+            <button onClick={() => setTab('customers')} className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition ${tab === 'customers' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>
+              客戶管理
+            </button>
+            <button onClick={() => setTab('options')} className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition ${tab === 'options' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>
+              維修保養選項
+            </button>
+          </div>
+          <a href="/admin/logs" className="text-xs text-slate-500 underline ml-2">登入紀錄</a>
         </div>
 
         {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
