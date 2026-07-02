@@ -77,7 +77,7 @@ export default function SignatureBox({ label, onChange }: Props) {
       return;
     }
     const raw = padRef.current.toDataURL('image/png');
-    const rotated = await rotateDataUrl(raw, 90);
+    const rotated = await rotateDataUrl(raw, -90);
     setPreviewUrl(raw);
     onChange(rotated);
     padRef.current.off();
