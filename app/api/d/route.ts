@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('dispatch_orders')
-    .select('id, customer_name, branch_name, customer_id, token, short_code, status')
+    .select('id, customer_name, branch, customer_id, token, short_code, status')
     .eq('short_code', code.toUpperCase())
     .single();
 
