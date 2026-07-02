@@ -114,17 +114,28 @@ export default function SignatureBox({ label, onChange }: Props) {
       </div>
 
       {fullscreen && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'white', display: 'flex', flexDirection: 'row',
-        }}>
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'white', display: 'flex', flexDirection: 'row',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            WebkitTouchCallout: 'none',
+          }}
+          onContextMenu={e => e.preventDefault()}
+        >
           {/* 左側：確認簽名（深色背景） */}
           <div
+            onTouchStart={e => e.preventDefault()}
+            onTouchEnd={e => { e.preventDefault(); confirmSig(); }}
             onClick={confirmSig}
             style={{
               width: 52, flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: '#0f172a', cursor: 'pointer',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
             }}
           >
             <span style={{
@@ -132,6 +143,9 @@ export default function SignatureBox({ label, onChange }: Props) {
               whiteSpace: 'nowrap',
               transform: 'rotate(90deg)',
               display: 'block',
+              pointerEvents: 'none',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
             }}>確認簽名</span>
           </div>
 
@@ -144,6 +158,8 @@ export default function SignatureBox({ label, onChange }: Props) {
                 width: '100%', height: '100%',
                 touchAction: 'none', display: 'block',
                 background: 'white',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
               }}
             />
             <p style={{
@@ -151,6 +167,8 @@ export default function SignatureBox({ label, onChange }: Props) {
               transform: 'translate(-50%,-50%)',
               color: '#e2e8f0', fontSize: 14,
               pointerEvents: 'none', whiteSpace: 'nowrap',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
             }}>請在此處簽名</p>
           </div>
 
@@ -162,29 +180,46 @@ export default function SignatureBox({ label, onChange }: Props) {
             padding: '24px 0',
             borderLeft: '1px solid #e2e8f0',
             background: 'white',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            WebkitTouchCallout: 'none',
           }}>
-            <button onClick={closeFullscreen} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#64748b', fontSize: 14, fontWeight: 500,
-              whiteSpace: 'nowrap',
-              transform: 'rotate(90deg)',
-              display: 'block',
-            }}>取消</button>
+            <button
+              onTouchStart={e => e.preventDefault()}
+              onTouchEnd={e => { e.preventDefault(); closeFullscreen(); }}
+              onClick={closeFullscreen}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#64748b', fontSize: 14, fontWeight: 500,
+                whiteSpace: 'nowrap',
+                transform: 'rotate(90deg)',
+                display: 'block',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+              }}>取消</button>
 
             <span style={{
               fontSize: 13, fontWeight: 600, color: '#0f172a',
               whiteSpace: 'nowrap',
               transform: 'rotate(90deg)',
               display: 'block',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
             }}>{label}</span>
 
-            <button onClick={clearSig} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#ef4444', fontSize: 14, fontWeight: 500,
-              whiteSpace: 'nowrap',
-              transform: 'rotate(90deg)',
-              display: 'block',
-            }}>清除</button>
+            <button
+              onTouchStart={e => e.preventDefault()}
+              onTouchEnd={e => { e.preventDefault(); clearSig(); }}
+              onClick={clearSig}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#ef4444', fontSize: 14, fontWeight: 500,
+                whiteSpace: 'nowrap',
+                transform: 'rotate(90deg)',
+                display: 'block',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+              }}>清除</button>
           </div>
         </div>
       )}
