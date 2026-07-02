@@ -84,7 +84,10 @@ export default function SettingsPage() {
                   {customers.map(c => (
                     <li key={c.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2">
                       <span className="text-sm text-slate-800">{c.name}</span>
-                      <button onClick={() => removeCustomer(c.id)} className="text-xs text-red-500">刪除</button>
+                      <div className="flex items-center gap-3">
+                        <a href={`/admin/settings/customer/${c.id}`} className="text-xs text-blue-600 underline">設定選項</a>
+                        <button onClick={() => removeCustomer(c.id)} className="text-xs text-red-500">刪除</button>
+                      </div>
                     </li>
                   ))}
                 </ul>

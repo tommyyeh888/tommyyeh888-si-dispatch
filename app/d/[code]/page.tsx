@@ -41,15 +41,35 @@ export default function ShortLinkPage() {
     Promise.all([
       fetch(`/api/d?code=${code}`).then(r => r.json()),
       fetch('/api/service-options').then(r => r.json()),
-    ]).then(([orderData, opts]) => {
+    ]).then(([orderData, allOpts]) => {
       if (orderData.error) {
         if (orderData.error.includes('已完成')) setStatus('done_already');
         else setStatus('invalid');
         return;
       }
       setOrder(orderData);
-      setServiceOptions(Array.isArray(opts) ? opts : []);
-      setStatus('ready');
+
+      // 讀取該客戶的專屬選項
+      const customerId = orderData.customer_id;
+      if (customerId) {
+        fetch(`/api/customer-options?customer_id=${customerId}`)
+          .then(r => r.json())
+          .then(selectedIds => {
+            if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+              // 有設定專屬選項，只顯示已勾選的
+              const filtered = (Array.isArray(allOpts) ? allOpts : [])
+                .filter((o: { id: string; label: string }) => selectedIds.includes(o.id));
+              setServiceOptions(filtered);
+            } else {
+              // 沒設定，顯示全部
+              setServiceOptions(Array.isArray(allOpts) ? allOpts : []);
+            }
+            setStatus('ready');
+          });
+      } else {
+        setServiceOptions(Array.isArray(allOpts) ? allOpts : []);
+        setStatus('ready');
+      }
     }).catch(() => setStatus('invalid'));
   }, [code]);
 
