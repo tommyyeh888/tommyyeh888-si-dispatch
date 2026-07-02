@@ -77,7 +77,7 @@ export default function SignatureBox({ label, onChange }: Props) {
       return;
     }
     const raw = padRef.current.toDataURL('image/png');
-    const rotated = await rotateDataUrl(raw, -90);
+    const rotated = await rotateDataUrl(raw, 90);
     setPreviewUrl(raw);
     onChange(rotated);
     padRef.current.off();
@@ -118,7 +118,7 @@ export default function SignatureBox({ label, onChange }: Props) {
           position: 'fixed', inset: 0, zIndex: 9999,
           background: 'white', display: 'flex', flexDirection: 'row',
         }}>
-          {/* 左側：確認簽名（深色背景，文字橫式旋轉） */}
+          {/* 左側：確認簽名（深色背景） */}
           <div
             onClick={confirmSig}
             style={{
@@ -130,7 +130,7 @@ export default function SignatureBox({ label, onChange }: Props) {
             <span style={{
               color: 'white', fontSize: 14, fontWeight: 600,
               whiteSpace: 'nowrap',
-              transform: 'rotate(-90deg)',
+              transform: 'rotate(90deg)',
               display: 'block',
             }}>確認簽名</span>
           </div>
@@ -154,7 +154,7 @@ export default function SignatureBox({ label, onChange }: Props) {
             }}>請在此處簽名</p>
           </div>
 
-          {/* 右側：取消 / 標題 / 清除（文字橫式旋轉） */}
+          {/* 右側：取消 / 標題 / 清除 */}
           <div style={{
             width: 52, flexShrink: 0,
             display: 'flex', flexDirection: 'column',
@@ -167,14 +167,14 @@ export default function SignatureBox({ label, onChange }: Props) {
               background: 'none', border: 'none', cursor: 'pointer',
               color: '#64748b', fontSize: 14, fontWeight: 500,
               whiteSpace: 'nowrap',
-              transform: 'rotate(-90deg)',
+              transform: 'rotate(90deg)',
               display: 'block',
             }}>取消</button>
 
             <span style={{
               fontSize: 13, fontWeight: 600, color: '#0f172a',
               whiteSpace: 'nowrap',
-              transform: 'rotate(-90deg)',
+              transform: 'rotate(90deg)',
               display: 'block',
             }}>{label}</span>
 
@@ -182,7 +182,7 @@ export default function SignatureBox({ label, onChange }: Props) {
               background: 'none', border: 'none', cursor: 'pointer',
               color: '#ef4444', fontSize: 14, fontWeight: 500,
               whiteSpace: 'nowrap',
-              transform: 'rotate(-90deg)',
+              transform: 'rotate(90deg)',
               display: 'block',
             }}>清除</button>
           </div>
