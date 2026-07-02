@@ -118,39 +118,24 @@ export default function SignatureBox({ label, onChange }: Props) {
           position: 'fixed', inset: 0, zIndex: 9999,
           background: 'white', display: 'flex', flexDirection: 'row',
         }}>
-          {/* 左側：旋轉的工具列（取消 + 標題） */}
-          <div style={{
-            width: 52, flexShrink: 0,
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'space-between',
-            padding: '20px 0',
-            borderRight: '1px solid #e2e8f0',
-            background: 'white',
-          }}>
-            {/* 取消按鈕 - 旋轉文字 */}
-            <button onClick={closeFullscreen} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#64748b', fontSize: 14, fontWeight: 500,
-              transform: 'rotate(90deg)', whiteSpace: 'nowrap',
-              padding: '4px 8px',
-            }}>取消</button>
-
-            {/* 標題 - 旋轉文字 */}
+          {/* 左側：確認簽名（深色背景） */}
+          <div
+            onClick={confirmSig}
+            style={{
+              width: 52, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: '#0f172a', cursor: 'pointer',
+            }}
+          >
             <span style={{
-              fontSize: 14, fontWeight: 600, color: '#0f172a',
-              transform: 'rotate(90deg)', whiteSpace: 'nowrap',
-            }}>{label}</span>
-
-            {/* 清除按鈕 - 旋轉文字 */}
-            <button onClick={clearSig} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#ef4444', fontSize: 14, fontWeight: 500,
-              transform: 'rotate(90deg)', whiteSpace: 'nowrap',
-              padding: '4px 8px',
-            }}>清除</button>
+              color: 'white', fontSize: 14, fontWeight: 600,
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+              letterSpacing: 2,
+            }}>確認簽名</span>
           </div>
 
-          {/* 中間：簽名畫布（不旋轉） */}
+          {/* 中間：簽名畫布 */}
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <canvas
               ref={canvasRef}
@@ -169,18 +154,37 @@ export default function SignatureBox({ label, onChange }: Props) {
             }}>請在此處簽名</p>
           </div>
 
-          {/* 右側：確認按鈕（旋轉文字） */}
+          {/* 右側：取消 / 標題 / 清除 */}
           <div style={{
             width: 52, flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'space-between',
+            padding: '24px 0',
             borderLeft: '1px solid #e2e8f0',
-            background: '#0f172a',
-            cursor: 'pointer',
-          }} onClick={confirmSig}>
+            background: 'white',
+          }}>
+            <button onClick={closeFullscreen} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#64748b', fontSize: 14, fontWeight: 500,
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+              letterSpacing: 2,
+            }}>取消</button>
+
             <span style={{
-              color: 'white', fontSize: 14, fontWeight: 600,
-              transform: 'rotate(-90deg)', whiteSpace: 'nowrap',
-            }}>確認簽名</span>
+              fontSize: 13, fontWeight: 600, color: '#0f172a',
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+              letterSpacing: 2,
+            }}>{label}</span>
+
+            <button onClick={clearSig} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#ef4444', fontSize: 14, fontWeight: 500,
+              writingMode: 'vertical-rl',
+              textOrientation: 'mixed',
+              letterSpacing: 2,
+            }}>清除</button>
           </div>
         </div>
       )}
