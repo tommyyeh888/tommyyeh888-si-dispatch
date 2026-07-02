@@ -25,6 +25,7 @@ export default function OrdersPage() {
   const [month, setMonth] = useState(currentMonth);
   const [customerId, setCustomerId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState('');
 
   useEffect(() => {
     fetch('/api/customers').then(r => r.json()).then(data => setCustomers(Array.isArray(data) ? data : []));
@@ -46,6 +47,14 @@ export default function OrdersPage() {
     if (!confirm('確定刪除此派工紀錄？此動作無法復原。')) return;
     await fetch(`/api/orders?id=${id}`, { method: 'DELETE' });
     fetchOrders();
+  };
+
+  const copyLink = async (order: Order) => {
+    if (!order.short_code) return;
+    const url = `${window.location.origin}/d/${order.short_code}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedId(order.id);
+    setTimeout(() => setCopiedId(''), 2000);
   };
 
   const monthOptions = Array.from({ length: 6 }, (_, i) => {
@@ -121,6 +130,14 @@ export default function OrdersPage() {
                     {order.status === 'completed' && order.pdf_drive_url && (
                       <a href={order.pdf_drive_url} target="_blank" rel="noopener noreferrer"
                         className="text-xs text-blue-600 underline">查看 PDF ↗</a>
+                    )}
+                    {order.status === 'pending' && order.short_code && (
+                      <button
+                        onClick={() => copyLink(order)}
+                        className="text-xs text-blue-600 underline"
+                      >
+                        {copiedId === order.id ? '✓ 已複製' : '複製派工連結'}
+                      </button>
                     )}
                     <button
                       onClick={() => deleteOrder(order.id)}
