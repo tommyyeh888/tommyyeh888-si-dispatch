@@ -65,16 +65,18 @@ export async function POST(req: NextRequest) {
 
     // LINE 群組通知
     const selectedOpts = (data.selectedOptions || []).join('、') || '無';
-    const machines = data.machines.filter(m => m.no).map(m => m.no).join('、') || '無';
+    const machines = data.machines.filter(m => m.no).map(m => m.no).join('、');
     const lineMsg = [
-      '✅ 派工單已回傳',
-      `📋 客戶：${data.customerName}${data.branchName ? ` / ${data.branchName}` : ''}`,
-      `📅 日期：${data.date}`,
-      `🔧 維修項目：${selectedOpts}`,
-      machines !== '無' ? `🖥️ 機器序號：${machines}` : null,
-      data.content ? `📝 補充：${data.content}` : null,
-      `📄 查看PDF：${driveResult.webViewLink}`,
-    ].filter(Boolean).join('\n');
+      `${data.date} 派工完工通知`,
+      '',
+      `客戶：${data.customerName}${data.branchName ? ` / ${data.branchName}` : ''}`,
+      `派工項目：${selectedOpts}`,
+      machines ? `機器序號：${machines}` : null,
+      '',
+      '已完工 ✅',
+      '',
+      `查看派工單：${driveResult.webViewLink}`,
+    ].filter(line => line !== null).join('\n');
 
     await sendLineMessage(lineMsg);
 
