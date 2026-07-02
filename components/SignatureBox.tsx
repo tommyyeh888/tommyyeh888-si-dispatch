@@ -59,7 +59,23 @@ export default function SignatureBox({ label, onChange }: Props) {
     return () => { fullPadRef.current?.off(); };
   }, [fullscreen]);
 
-  const openFullscreen = () => setFullscreen(true);
+  // 開啟全螢幕時強制橫式
+  const openFullscreen = () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (screen.orientation as any)?.lock?.('landscape').catch(() => {});
+    } catch { /* 不支援的裝置略過 */ }
+    setFullscreen(true);
+  };
+
+  // 關閉全螢幕時恢復直式
+  const closeFullscreen = () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (screen.orientation as any)?.unlock?.();
+    } catch { /* 略過 */ }
+    setFullscreen(false);
+  };
 
   const confirmFullscreen = () => {
     if (!fullPadRef.current || fullPadRef.current.isEmpty()) {
@@ -70,6 +86,10 @@ export default function SignatureBox({ label, onChange }: Props) {
     setPreviewUrl(url);
     setEmpty(false);
     onChange(url);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (screen.orientation as any)?.unlock?.();
+    } catch { /* 略過 */ }
     setFullscreen(false);
   };
 
@@ -114,10 +134,10 @@ export default function SignatureBox({ label, onChange }: Props) {
 
       {/* 全螢幕簽名 Modal */}
       {fullscreen && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col">
+        <div className="sig-fullscreen fixed z-50 bg-white flex flex-col">
           {/* 頂部工具列 */}
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 shrink-0">
-            <button onClick={() => setFullscreen(false)} className="text-sm text-slate-500">取消</button>
+            <button onClick={closeFullscreen} className="text-sm text-slate-500">取消</button>
             <span className="text-sm font-semibold text-slate-900">{label}</span>
             <button onClick={clearFullscreen} className="text-sm text-red-500">清除</button>
           </div>
@@ -143,6 +163,28 @@ export default function SignatureBox({ label, onChange }: Props) {
               確認簽名
             </button>
           </div>
+
+          <style jsx global>{`
+            /* 直式時旋轉整個簽名 Modal 為橫式 */
+            @media (orientation: portrait) {
+              .sig-fullscreen {
+                top: 0; left: 0;
+                width: 100vh;
+                height: 100vw;
+                transform: rotate(90deg) translateX(0);
+                transform-origin: top left;
+                margin-top: 100vw;
+              }
+            }
+            /* 橫式時直接全螢幕 */
+            @media (orientation: landscape) {
+              .sig-fullscreen {
+                inset: 0;
+                width: 100vw;
+                height: 100vh;
+              }
+            }
+          `}</style>
         </div>
       )}
     </>
