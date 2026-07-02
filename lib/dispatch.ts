@@ -10,6 +10,7 @@ export interface DispatchSeed {
   machineCount: number;
   partCount: number;
   createdAt: string;
+  token?: string; // 對應 Supabase 的派工單 ID
 }
 
 export interface MachineEntry {
@@ -48,6 +49,7 @@ export function createSeed(input: {
   branchName: string;
   customerId: string;
   projectId?: string;
+  token?: string;
 }): DispatchSeed {
   return {
     customerName: input.customerName,
@@ -57,6 +59,7 @@ export function createSeed(input: {
     machineCount: DEFAULT_MACHINE_COUNT,
     partCount: DEFAULT_PART_COUNT,
     createdAt: new Date().toISOString(),
+    token: input.token || '',
   };
 }
 
