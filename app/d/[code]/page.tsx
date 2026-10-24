@@ -8,11 +8,9 @@ import { emptyMachines, emptyParts } from '@/lib/dispatch';
 type Status = 'loading' | 'invalid' | 'done_already' | 'ready' | 'submitting' | 'done' | 'error';
 
 interface OrderData {
-  id: string;
   customer_name: string;
   branch: string;
   customer_id: string;
-  token: string;
   short_code: string;
 }
 
@@ -56,12 +54,10 @@ export default function ShortLinkPage() {
           .then(r => r.json())
           .then(selectedIds => {
             if (Array.isArray(selectedIds) && selectedIds.length > 0) {
-              // 有設定專屬選項，只顯示已勾選的
               const filtered = (Array.isArray(allOpts) ? allOpts : [])
                 .filter((o: { id: string; label: string }) => selectedIds.includes(o.id));
               setServiceOptions(filtered);
             } else {
-              // 沒設定，顯示全部
               setServiceOptions(Array.isArray(allOpts) ? allOpts : []);
             }
             setStatus('ready');
@@ -98,12 +94,12 @@ export default function ShortLinkPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          shortCode: order!.short_code || code,
           customerName: order!.customer_name,
           branchName: order!.branch,
           customerId: order!.customer_id,
           machineCount: 6, partCount: 6,
           createdAt: new Date().toISOString(),
-          token: order!.token || order!.id,
           date, machines, selectedOptions, content,
           quoteFax: '', contactPerson, contactTitle,
           parts: emptyParts(6),

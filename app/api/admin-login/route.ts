@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { ADMIN_COOKIE_NAME, hashPassword } from '@/lib/auth';
 
 function parseDevice(ua: string): string {
   if (/iPhone/.test(ua)) return 'iPhone';
@@ -43,10 +44,15 @@ export async function POST(req: NextRequest) {
       user_agent: ua,
       device,
     });
-  } catch { /* 記錄失敗不影響登入 */ }
+  } catch {
+    /* 記錄失敗不影響登入 */
+  }
+
+  // v28：將 SHA-256 雜湊值寫入 Cookie，不存明文密碼
+  const tokenHash = await hashPassword(correct);
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set('admin_auth', correct, {
+  res.cookies.set(ADMIN_COOKIE_NAME, tokenHash, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
