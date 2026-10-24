@@ -12,6 +12,7 @@ interface Order {
   pdf_drive_url: string;
   short_code: string;
   created_at: string;
+  created_by_email?: string | null;
 }
 
 interface Customer { id: string; name: string; }
@@ -114,10 +115,15 @@ export default function OrdersPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-slate-900">{order.customer_name}</p>
                     <p className="text-sm text-slate-500">{order.branch || '—'}</p>
-                    <div className="mt-1 flex items-center gap-2">
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
                       <p className="text-xs text-slate-400">{order.date || order.created_at?.slice(0, 10)}</p>
                       {order.short_code && (
                         <span className="text-xs text-slate-300">#{order.short_code}</span>
+                      )}
+                      {order.created_by_email && (
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
+                          開單：{order.created_by_email}
+                        </span>
                       )}
                     </div>
                   </div>

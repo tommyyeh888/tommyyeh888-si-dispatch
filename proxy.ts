@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_COOKIE_NAME, verifyAdminCookie } from '@/lib/auth';
 
 /**
- * SI-Dispatch v28 登入關卡 (proxy.ts)
+ * SI-Dispatch v29 (Stage 2) 登入關卡 (proxy.ts)
  * 1. 保護所有 /admin/* 頁面（/admin/login 除外），未登入導向 /admin/login
  * 2. 保護後台管理 API：
- *    - /api/orders、/api/orders/[id]、/api/login-logs：所有 HTTP Method 皆須驗證 Cookie
- *    - /api/customers、/api/customer-options、/api/service-options：GET 開放給工程師填單頁讀取，非 GET (POST/PUT/PATCH/DELETE) 須驗證 Cookie
- * 3. Cookie 改驗 SHA-256 雜湊值，不再比對明文密碼
+ *    - /api/orders、/api/orders/[id]、/api/login-logs、/api/branches：所有受保護操作須驗證 Cookie
+ *    - /api/customers、/api/customer-options、/api/service-options：GET 開放給工程師填單頁讀取，非 GET 須驗證 Cookie
+ * 3. 支援 Supabase Auth 員工個人帳號 HMAC Session Cookie 與 v28 SHA-256 Cookie 雙重相容
  */
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -28,7 +28,8 @@ export async function proxy(req: NextRequest) {
   // 2. 後台完全受保護之 API (所有 Method 均需登入)
   const isAdminOnlyApi =
     pathname.startsWith('/api/orders') ||
-    pathname.startsWith('/api/login-logs');
+    pathname.startsWith('/api/login-logs') ||
+    pathname.startsWith('/api/branches');
 
   // 3. 讀取開放給填單頁、但寫入/刪除必須登入之設定 API
   const isWriteProtectedApi =
@@ -55,6 +56,7 @@ export const config = {
     '/admin/:path*',
     '/api/orders/:path*',
     '/api/login-logs/:path*',
+    '/api/branches/:path*',
     '/api/customers/:path*',
     '/api/customer-options/:path*',
     '/api/service-options/:path*',

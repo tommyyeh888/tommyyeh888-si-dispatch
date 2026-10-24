@@ -9,6 +9,8 @@ interface LoginLog {
   device: string;
   user_agent: string;
   logged_in_at: string;
+  email?: string | null;
+  auth_method?: string | null;
 }
 
 export default function LogsPage() {
@@ -44,7 +46,14 @@ export default function LogsPage() {
               <div key={log.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-slate-900">{log.device}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-slate-900">{log.device}</p>
+                      {log.email && (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                          {log.email}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-slate-500">IP：{log.ip}</p>
                     <p className="mt-1 text-xs text-slate-400 break-all">{log.user_agent}</p>
                   </div>

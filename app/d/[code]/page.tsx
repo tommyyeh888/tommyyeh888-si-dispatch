@@ -12,6 +12,9 @@ interface OrderData {
   branch: string;
   customer_id: string;
   short_code: string;
+  branch_address?: string | null;
+  branch_phone?: string | null;
+  branch_contact_person?: string | null;
 }
 
 interface ServiceOption { id: string; label: string; }
@@ -25,7 +28,7 @@ export default function ShortLinkPage() {
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 日期讓工程師自行填寫
+  // 日期與機器序號維持由工程師現場手動填寫
   const [date, setDate] = useState('');
   const [machines, setMachines] = useState(emptyMachines(6));
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -46,6 +49,9 @@ export default function ShortLinkPage() {
         return;
       }
       setOrder(orderData);
+      if (orderData.branch_contact_person) {
+        setContactPerson(orderData.branch_contact_person);
+      }
 
       // 讀取該客戶的專屬選項
       const customerId = orderData.customer_id;
@@ -144,6 +150,17 @@ export default function ShortLinkPage() {
         <Section title="基本資訊">
           <ReadonlyRow label="客戶名稱" value={order?.customer_name || ''} />
           <ReadonlyRow label="分店" value={order?.branch || ''} />
+          {order?.branch_address && (
+            <ReadonlyRow label="門市地址" value={order.branch_address} />
+          )}
+          {order?.branch_phone && (
+            <div className="mb-2 flex justify-between text-sm">
+              <span className="text-slate-500">門市電話</span>
+              <a href={`tel:${order.branch_phone}`} className="font-medium text-blue-600 underline">
+                {order.branch_phone}
+              </a>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-500">日期 <span className="text-red-500">*</span></span>
             <input
@@ -231,9 +248,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 function ReadonlyRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="mb-2 flex justify-between text-sm last:mb-0">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-medium text-slate-900">{value || '—'}</span>
+    <div className="mb-2 flex justify-between gap-4 text-sm last:mb-0">
+      <span className="shrink-0 text-slate-500">{label}</span>
+      <span className="text-right font-medium text-slate-900">{value || '—'}</span>
     </div>
   );
 }
