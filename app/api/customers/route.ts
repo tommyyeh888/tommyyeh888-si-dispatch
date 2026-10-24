@@ -10,7 +10,7 @@ function getClient() {
 
 /**
  * GET /api/customers
- * 同時讀取 dispatch_customers 與 si-crm 的 customers，自動合併對應：
+ * 同時讀取 dispatch_customers 與 si-crm 的 customers (status = 'active')，自動合併對應：
  * - 保留 dispatch_customers.id 作為 id（讓既有 dispatch_customer_options 專屬維修選項無縫運作）
  * - 帶出 crm_customer_id，供前端聯動查詢 si-crm 的 customer_groups 與 customer_branches
  */
@@ -19,7 +19,11 @@ export async function GET() {
 
   const [dispatchRes, crmRes] = await Promise.all([
     supabase.from('dispatch_customers').select('*').order('sort_order'),
-    supabase.from('customers').select('id, name, code, tax_id, contact_person, phone, is_active').eq('is_active', true).order('name'),
+    supabase
+      .from('customers')
+      .select('id, name, store_code, tax_id, owner_name, address, status')
+      .eq('status', 'active')
+      .order('name'),
   ]);
 
   if (dispatchRes.error) {
@@ -36,19 +40,23 @@ export async function GET() {
         (c) =>
           c.name === dc.name ||
           c.name.startsWith(dc.name) ||
-          dc.name.startsWith(c.name)
+          dc.name.startsWith(c.name) ||
+          (dc.name.startsWith('爭鮮') && c.name.startsWith('爭鮮'))
       );
     return {
       ...dc,
       crm_customer_id: dc.crm_customer_id || matchedCrm?.id || null,
-      crm_code: matchedCrm?.code || null,
+      crm_code: matchedCrm?.store_code || null,
     };
   });
 
   // 若 si-crm 有尚未出現在 dispatch_customers 的活躍客戶，也一併列出
   for (const crm of crmCustomers) {
     const alreadyInList = result.some(
-      (r) => r.crm_customer_id === crm.id || r.name === crm.name
+      (r) =>
+        r.crm_customer_id === crm.id ||
+        r.name === crm.name ||
+        (r.name.startsWith('爭鮮') && crm.name.startsWith('爭鮮'))
     );
     if (!alreadyInList) {
       result.push({
@@ -56,7 +64,7 @@ export async function GET() {
         name: crm.name,
         sort_order: 999,
         crm_customer_id: crm.id,
-        crm_code: crm.code || null,
+        crm_code: crm.store_code || null,
       });
     }
   }
@@ -90,7 +98,7 @@ export async function POST(req: NextRequest) {
   } else {
     const { data: createdCrm } = await supabase
       .from('customers')
-      .insert({ name: trimmedName, is_active: true })
+      .insert({ name: trimmedName, status: 'active' })
       .select('id')
       .single();
     if (createdCrm?.id) {

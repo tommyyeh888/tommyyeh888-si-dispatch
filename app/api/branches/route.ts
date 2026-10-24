@@ -10,7 +10,7 @@ function getClient() {
 
 /**
  * GET /api/branches?customer_id=...&crm_customer_id=...&customer_name=...
- * 從 si-crm 的 customer_groups (品牌群組) 與 customer_branches (分店門市) 讀取完整階層資料
+ * 從 si-crm 的 customer_groups (事業體/品牌群組) 與 customer_branches (分店門市) 讀取完整階層資料
  */
 export async function GET(req: NextRequest) {
   const customerId = req.nextUrl.searchParams.get('customer_id') || '';
@@ -22,30 +22,36 @@ export async function GET(req: NextRequest) {
   let targetCrmCustomerId = crmCustomerIdParam;
 
   // 若未直接提供 crm_customer_id，透過 dispatch_customers 或客戶名稱比對 si-crm customers
-  if (!targetCrmCustomerId && customerId) {
-    const { data: dc } = await supabase
-      .from('dispatch_customers')
-      .select('id, name, crm_customer_id')
-      .eq('id', customerId)
-      .maybeSingle();
+  if (!targetCrmCustomerId && (customerId || customerNameParam)) {
+    let searchName = customerNameParam;
+    if (customerId) {
+      const { data: dc } = await supabase
+        .from('dispatch_customers')
+        .select('*')
+        .eq('id', customerId)
+        .maybeSingle();
 
-    if (dc?.crm_customer_id) {
-      targetCrmCustomerId = dc.crm_customer_id;
-    } else {
-      const searchName = dc?.name || customerNameParam;
-      if (searchName) {
-        const { data: crmList } = await supabase
-          .from('customers')
-          .select('id, name')
-          .eq('is_active', true);
-        const matched = (crmList || []).find(
-          (c) =>
-            c.name === searchName ||
-            c.name.startsWith(searchName) ||
-            searchName.startsWith(c.name)
-        );
-        if (matched) targetCrmCustomerId = matched.id;
+      if (dc && 'crm_customer_id' in dc && dc.crm_customer_id) {
+        targetCrmCustomerId = dc.crm_customer_id as string;
       }
+      if (!searchName && dc?.name) {
+        searchName = dc.name as string;
+      }
+    }
+
+    if (!targetCrmCustomerId && searchName) {
+      const { data: crmList } = await supabase
+        .from('customers')
+        .select('id, name, status')
+        .eq('status', 'active');
+      const matched = (crmList || []).find(
+        (c) =>
+          c.name === searchName ||
+          c.name.startsWith(searchName) ||
+          searchName.startsWith(c.name) ||
+          (searchName.startsWith('爭鮮') && c.name.startsWith('爭鮮'))
+      );
+      if (matched) targetCrmCustomerId = matched.id;
     }
   }
 
@@ -60,17 +66,15 @@ export async function GET(req: NextRequest) {
   const [groupsRes, branchesRes] = await Promise.all([
     supabase
       .from('customer_groups')
-      .select('id, customer_id, name, code, description, is_active')
+      .select('id, customer_id, name, description, industry')
       .eq('customer_id', targetCrmCustomerId)
-      .eq('is_active', true)
       .order('name'),
     supabase
       .from('customer_branches')
       .select(
-        'id, customer_id, group_id, name, code, city, address, phone, contact_person, status, is_active'
+        'id, customer_id, group_id, name, branch_code, store_code, address, phone, contact_name, device_ip, status'
       )
       .eq('customer_id', targetCrmCustomerId)
-      .eq('is_active', true)
       .order('name'),
   ]);
 
@@ -81,9 +85,33 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const normalizedGroups = (groupsRes.data || []).map((g) => ({
+    id: g.id,
+    customer_id: g.customer_id,
+    name: g.name,
+    code: g.industry || null,
+    description: g.description || null,
+  }));
+
+  const normalizedBranches = (branchesRes.data || [])
+    .filter((b) => !b.status || b.status === 'active' || b.status === '營運中')
+    .map((b) => ({
+      id: b.id,
+      customer_id: b.customer_id,
+      group_id: b.group_id || null,
+      name: b.name,
+      code: b.store_code || b.branch_code || null,
+      city: null,
+      address: b.address || null,
+      phone: b.phone || null,
+      contact_person: b.contact_name || null,
+      device_ip: b.device_ip || null,
+      status: b.status || 'active',
+    }));
+
   return NextResponse.json({
     crm_customer_id: targetCrmCustomerId,
-    groups: groupsRes.data || [],
-    branches: branchesRes.data || [],
+    groups: normalizedGroups,
+    branches: normalizedBranches,
   });
 }

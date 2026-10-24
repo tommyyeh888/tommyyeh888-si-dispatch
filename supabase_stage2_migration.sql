@@ -5,7 +5,6 @@
 -- 2. 擴充 dispatch_orders 支援 branch_id、ticket_id、created_by_email 與門市聯絡資訊快照
 -- 3. 擴充 dispatch_login_logs 支援 email 記錄 (Supabase Auth 員工個人帳號登入)
 -- 4. 針對 si-crm 16 張表與 SI-Dispatch 6 張表啟用 RLS 並建立 authenticated 政策
---    (Service Role Key 預設繞過 RLS，因此不影響現有 API Route，同時保護 Anon Key 不外洩資料)
 -- ============================================================================
 
 BEGIN;
@@ -23,8 +22,9 @@ FROM public.customers c
 WHERE dc.crm_customer_id IS NULL
   AND (
     dc.name = c.name
-    OR (dc.name = '雙月食品' AND c.name LIKE '雙月食品%')
+    OR (dc.name LIKE '爭鮮%' AND c.name LIKE '爭鮮%')
     OR (c.name LIKE dc.name || '%')
+    OR (dc.name LIKE c.name || '%')
   );
 
 -- 確保 si-crm 的所有活躍客戶在 dispatch_customers 都有對應項目（方便「設定客戶專屬維修選項」使用）
@@ -34,7 +34,7 @@ SELECT
   COALESCE((SELECT MAX(sort_order) FROM public.dispatch_customers), 0) + ROW_NUMBER() OVER (ORDER BY c.created_at),
   c.id
 FROM public.customers c
-WHERE c.is_active = true
+WHERE c.status = 'active'
   AND NOT EXISTS (
     SELECT 1 FROM public.dispatch_customers dc
     WHERE dc.crm_customer_id = c.id OR dc.name = c.name
@@ -90,24 +90,24 @@ DECLARE
     'dispatch_service_options',
     'dispatch_customer_options',
     'dispatch_login_logs',
-    'dispatch_records',
+    'dispatch_settings',
     -- si-crm 16 張表
     'customers',
     'customer_groups',
     'customer_branches',
-    'branch_Anchor',
     'customer_contacts',
-    'devices',
-    'device_categories',
-    'device_models',
-    'contracts',
+    'equipment_categories',
+    'equipment_brands',
+    'equipment_models',
+    'customer_equipment',
+    'inventory_equipment',
+    'maintenance_contracts',
+    'contract_equipment',
+    'engineers',
+    'dispatch_types',
+    'engineer_dispatch_rates',
     'tickets',
-    'ticket_Attachments',
-    'checkout_logs',
-    'inspection_logs',
-    'audit_logs',
-    'line_Configs',
-    'user_profiles'
+    'ticket_logs'
   ];
 BEGIN
   FOREACH tbl IN ARRAY all_tables

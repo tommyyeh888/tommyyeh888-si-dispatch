@@ -59,25 +59,25 @@ export async function GET(req: NextRequest) {
     if (orderData.branch_id) {
       const { data: b } = await supabase
         .from('customer_branches')
-        .select('address, phone, contact_person')
+        .select('address, phone, contact_name')
         .eq('id', orderData.branch_id)
         .maybeSingle();
       if (b) {
         branchAddress = b.address || null;
         branchPhone = b.phone || null;
-        branchContactPerson = b.contact_person || null;
+        branchContactPerson = b.contact_name || null;
       }
     } else if (orderData.branch) {
       const { data: b } = await supabase
         .from('customer_branches')
-        .select('address, phone, contact_person')
+        .select('address, phone, contact_name')
         .eq('name', orderData.branch)
         .limit(1)
         .maybeSingle();
       if (b) {
         branchAddress = b.address || null;
         branchPhone = b.phone || null;
-        branchContactPerson = b.contact_person || null;
+        branchContactPerson = b.contact_name || null;
       }
     }
   }
