@@ -10,38 +10,13 @@ interface Customer {
   crm_customer_id?: string | null;
 }
 
-interface CustomerGroup {
-  id: string;
-  customer_id: string;
-  name: string;
-  code: string | null;
-}
-
-interface CustomerBranch {
-  id: string;
-  customer_id: string;
-  group_id: string | null;
-  name: string;
-  code: string | null;
-  city: string | null;
-  address: string | null;
-  phone: string | null;
-  contact_person: string | null;
-  status: string | null;
-}
-
 export default function CreatePage() {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState('');
-  const [groups, setGroups] = useState<CustomerGroup[]>([]);
-  const [branches, setBranches] = useState<CustomerBranch[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState('');
-  const [selectedBranchId, setSelectedBranchId] = useState('');
-  const [useCustomBranch, setUseCustomBranch] = useState(false);
-  const [customBranchName, setCustomBranchName] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [branchName, setBranchName] = useState('');
   const [loading, setLoading] = useState(true);
-  const [loadingBranches, setLoadingBranches] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -54,49 +29,6 @@ export default function CreatePage() {
       .catch(() => setLoading(false));
   }, []);
 
-  // 當選擇客戶變更時，自動載入該客戶在 si-crm 的品牌群組 (customer_groups) 與門市清單 (customer_branches)
-  useEffect(() => {
-    setSelectedGroupId('');
-    setSelectedBranchId('');
-    setCustomBranchName('');
-    setGroups([]);
-    setBranches([]);
-
-    if (!customerId) return;
-    const customer = customers.find((c) => c.id === customerId);
-    if (!customer) return;
-
-    setLoadingBranches(true);
-    const params = new URLSearchParams({
-      customer_id: customer.id,
-      customer_name: customer.name,
-    });
-    if (customer.crm_customer_id) {
-      params.set('crm_customer_id', customer.crm_customer_id);
-    }
-
-    fetch(`/api/branches?${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const fetchedGroups: CustomerGroup[] = Array.isArray(data?.groups) ? data.groups : [];
-        const fetchedBranches: CustomerBranch[] = Array.isArray(data?.branches) ? data.branches : [];
-        setGroups(fetchedGroups);
-        setBranches(fetchedBranches);
-        setUseCustomBranch(fetchedBranches.length === 0);
-        setLoadingBranches(false);
-      })
-      .catch(() => {
-        setUseCustomBranch(true);
-        setLoadingBranches(false);
-      });
-  }, [customerId, customers]);
-
-  const filteredBranches = selectedGroupId
-    ? branches.filter((b) => b.group_id === selectedGroupId)
-    : branches;
-
-  const selectedBranchObj = branches.find((b) => b.id === selectedBranchId) || null;
-
   const generate = async () => {
     const customer = customers.find((c) => c.id === customerId);
     if (!customer) {
@@ -104,9 +36,12 @@ export default function CreatePage() {
       return;
     }
 
-    const finalBranchName = useCustomBranch
-      ? customBranchName.trim()
-      : selectedBranchObj?.name || '';
+    const trimmedGroup = groupName.trim();
+    const trimmedBranch = branchName.trim();
+    const finalBranchName =
+      trimmedGroup && trimmedBranch
+        ? `${trimmedGroup} - ${trimmedBranch}`
+        : trimmedBranch || trimmedGroup || '';
 
     setSubmitting(true);
     try {
@@ -117,12 +52,9 @@ export default function CreatePage() {
           customer_id: customer.id,
           crm_customer_id: customer.crm_customer_id || null,
           customer_name: customer.name,
-          group_id: selectedGroupId || null,
-          branch_id: useCustomBranch ? null : selectedBranchObj?.id || null,
+          group_name: trimmedGroup || null,
           branch: finalBranchName,
-          branch_address: useCustomBranch ? null : selectedBranchObj?.address || null,
-          branch_phone: useCustomBranch ? null : selectedBranchObj?.phone || null,
-          branch_contact_person: useCustomBranch ? null : selectedBranchObj?.contact_person || null,
+          sync_new_branch_to_crm: false,
         }),
       });
       const order = await res.json();
@@ -178,87 +110,30 @@ export default function CreatePage() {
             )}
           </div>
 
-          {/* 若該客戶在 si-crm 有設定多個品牌群組（例如：雙月食品、老井集團旗下品牌），顯示品牌篩選 */}
-          {customerId && groups.length > 0 && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                品牌群組 (SI-CRM)
-              </label>
-              <select
-                value={selectedGroupId}
-                onChange={(e) => {
-                  setSelectedGroupId(e.target.value);
-                  setSelectedBranchId('');
-                }}
-                className="input"
-              >
-                <option value="">全部品牌 ({branches.length} 間門市)</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              品牌群組（選填）
+            </label>
+            <input
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="input"
+              placeholder="手動輸入品牌群組（例如：定食8、MAGiC TOUCH，無則免填）"
+            />
+          </div>
 
           <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">分店 / 門市</label>
-              {customerId && branches.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseCustomBranch((prev) => !prev);
-                    setSelectedBranchId('');
-                  }}
-                  className="text-xs text-blue-600 underline"
-                >
-                  {useCustomBranch ? '改從 SI-CRM 門市選單挑選' : '+ 手動輸入新分店'}
-                </button>
-              )}
-            </div>
-
-            {loadingBranches ? (
-              <p className="text-sm text-slate-400">載入 SI-CRM 門市清單中...</p>
-            ) : !useCustomBranch && branches.length > 0 ? (
-              <>
-                <select
-                  value={selectedBranchId}
-                  onChange={(e) => setSelectedBranchId(e.target.value)}
-                  className="input"
-                >
-                  <option value="">請選擇門市（共 {filteredBranches.length} 間）</option>
-                  {filteredBranches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                      {b.city ? ` (${b.city})` : ''}
-                    </option>
-                  ))}
-                </select>
-
-                {selectedBranchObj && (
-                  <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
-                    {selectedBranchObj.address && (
-                      <p>📍 地址：{selectedBranchObj.address}</p>
-                    )}
-                    {selectedBranchObj.phone && (
-                      <p>📞 電話：{selectedBranchObj.phone}</p>
-                    )}
-                    {selectedBranchObj.contact_person && (
-                      <p>👤 聯絡人：{selectedBranchObj.contact_person}</p>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <input
-                value={customBranchName}
-                onChange={(e) => setCustomBranchName(e.target.value)}
-                className="input"
-                placeholder="例如：龍潭廠、森林公園店（新分店將自動同步至 SI-CRM）"
-              />
-            )}
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              分店 / 營業點 / 單位
+            </label>
+            <input
+              type="text"
+              value={branchName}
+              onChange={(e) => setBranchName(e.target.value)}
+              className="input"
+              placeholder="手動輸入分店或單位名稱（例如：龍潭廠、林口店）"
+            />
           </div>
 
           <button

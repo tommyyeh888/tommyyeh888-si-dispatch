@@ -76,58 +76,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 若為手動輸入的新分店，且屬於已知的 si-crm 客戶，可自動同步寫入 customer_branches
-  let branchId: string | null = body.branch_id || null;
-  let branchAddress: string | null = body.branch_address || null;
-  let branchPhone: string | null = body.branch_phone || null;
-  let branchContactPerson: string | null = body.branch_contact_person || null;
+  // 品牌群組與分店目前皆採手動輸入，不從 si-crm 的 customer_branches 自動帶入或同步未確認之門市資料
+  const branchId: string | null = body.branch_id || null;
+  const branchAddress: string | null = body.branch_address || null;
+  const branchPhone: string | null = body.branch_phone || null;
+  const branchContactPerson: string | null = body.branch_contact_person || null;
   const crmCustomerId: string | null = body.crm_customer_id || null;
   const branchName = typeof body.branch === 'string' ? body.branch.trim() : '';
-
-  if (branchId) {
-    const { data: branchRow } = await supabase
-      .from('customer_branches')
-      .select('id, name, address, phone, contact_name')
-      .eq('id', branchId)
-      .maybeSingle();
-    if (branchRow) {
-      branchAddress = branchAddress || branchRow.address || null;
-      branchPhone = branchPhone || branchRow.phone || null;
-      branchContactPerson = branchContactPerson || branchRow.contact_name || null;
-    }
-  } else if (branchName && crmCustomerId && body.sync_new_branch_to_crm !== false) {
-    // 檢查是否已有同名分店，若無則自動幫 si-crm 新增此分店
-    const { data: existingBranch } = await supabase
-      .from('customer_branches')
-      .select('id, address, phone, contact_name')
-      .eq('customer_id', crmCustomerId)
-      .eq('name', branchName)
-      .maybeSingle();
-
-    if (existingBranch) {
-      branchId = existingBranch.id;
-      branchAddress = branchAddress || existingBranch.address || null;
-      branchPhone = branchPhone || existingBranch.phone || null;
-      branchContactPerson = branchContactPerson || existingBranch.contact_name || null;
-    } else {
-      const { data: newBranch } = await supabase
-        .from('customer_branches')
-        .insert({
-          customer_id: crmCustomerId,
-          group_id: body.group_id || null,
-          name: branchName,
-          address: branchAddress,
-          phone: branchPhone,
-          contact_name: branchContactPerson,
-          status: 'active',
-        })
-        .select('id')
-        .maybeSingle();
-      if (newBranch?.id) {
-        branchId = newBranch.id;
-      }
-    }
-  }
 
   const baseInsert = {
     customer_id: body.customer_id,
