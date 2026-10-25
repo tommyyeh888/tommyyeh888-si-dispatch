@@ -4,6 +4,7 @@ import {
   ADMIN_COOKIE_NAME,
   ADMIN_EMAIL_COOKIE_NAME,
   createStaffSessionToken,
+  getExpectedAuthToken,
   hashPassword,
 } from '@/lib/auth';
 
@@ -55,20 +56,21 @@ export async function POST(req: NextRequest) {
     authMethod = 'supabase_auth';
     tokenValue = await createStaffSessionToken(authenticatedEmail);
   } else {
-    // 方式 B：向下相容 ADMIN_PASSWORD 共用後台密碼（過渡期不斷線）
-    const correct = process.env.ADMIN_PASSWORD;
-    if (!correct) {
+    // 方式 B：向下相容 ADMIN_PASSWORD 共用後台密碼（支援 sha256:<hash> 或明文）
+    const expectedToken = await getExpectedAuthToken();
+    if (!expectedToken) {
       return NextResponse.json(
         { error: '系統已停用共用密碼，請使用員工 Email 帳號登入' },
         { status: 401 }
       );
     }
-    if (password !== correct) {
+    const inputToken = await hashPassword(password);
+    if (inputToken !== expectedToken) {
       return NextResponse.json({ error: '密碼錯誤' }, { status: 401 });
     }
     authenticatedEmail = 'admin@shared-password';
     authMethod = 'legacy_password';
-    tokenValue = await hashPassword(correct);
+    tokenValue = expectedToken;
   }
 
   // 取得 IP 與裝置資訊

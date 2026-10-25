@@ -56,6 +56,9 @@ export async function hashPassword(password: string): Promise<string> {
 export async function getExpectedAuthToken(): Promise<string | null> {
   const password = process.env.ADMIN_PASSWORD;
   if (!password) return null;
+  if (password.startsWith("sha256:")) {
+    return password.slice("sha256:".length).trim().toLowerCase();
+  }
   return hashPassword(password);
 }
 
